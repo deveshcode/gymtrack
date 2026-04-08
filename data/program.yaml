@@ -1,0 +1,98 @@
+program_name: "12 Week Workout Program"
+weeks:
+  week_1:
+    label: "Week 1"
+    block: "Block 1"
+    phase: "Intro Week"
+    days:
+      upper_1:
+        label: "Upper 1"
+        exercises:
+          - exercise: "Barbell Incline Press"
+            intensity_technique: "N/A"
+            warm_up_sets: "2-4"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 2
+            rir_set_2: 1
+            rest: "3-5 min"
+            substitution_1: "Smith Machine Incline Press"
+            substitution_2: "DB Incline Press"
+            notes: "A 30° or 45° bench will work here. Pause for 1 second at the bottom of each rep while maintaining tension on the pecs."
+          - exercise: "Pec Deck"
+            intensity_technique: "N/A"
+            warm_up_sets: "1-2"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "DB Flye"
+            substitution_2: "Cable Flye"
+            notes: "Pause for 1 second at the bottom of each rep while maintaining tension on the pecs."
+          - exercise: "Incline DB Y-Raise"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Cable Y-Raise"
+            substitution_2: "Machine Lateral Raise"
+            notes: "Use a 30° incline bench (back against the bench) and lift the weight up and out in a Y shape."
+          - exercise: "Pull-Up (Wide Grip)"
+            intensity_technique: "N/A"
+            warm_up_sets: "1-2"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 2
+            rir_set_2: 1
+            rest: "2-3 min"
+            substitution_1: "Lat Pulldown (Wide Grip)"
+            substitution_2: "1-Arm Cable Pulldown"
+            notes: "Control the negative and feel your lats pulling apart. Full ROM!"
+          - exercise: "Kelso Shrug"
+            intensity_technique: "N/A"
+            warm_up_sets: "1-2"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 2
+            rir_set_2: 1
+            rest: "2-3 min"
+            substitution_1: "Seated Cable Kelso Shrug"
+            substitution_2: "Incline DB Kelso Shrug"
+            notes: "Pause for about 1 second at the top and then allow your shoulder blades to peel apart on the way back down, under control."
+          - exercise: "EZ-Bar Preacher Curl"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Machine Preacher Curl"
+            substitution_2: "DB Preacher Curl"
+            notes: "Keep your triceps firmly pinned against the pad as you curl. Smooth controlled reps."
+          - exercise: "Triceps Pressdown"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Close-Grip Bench Press"
+            substitution_2: "Smith Machine JM Press"
+            notes: "You can use a rope or bar attachment for these, whichever you find more comfortable."
+          - exercise: "Dragon Flag"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Bent-Knee Dragon Flag"
+            substitution_2: "Lying Leg Raise"
+            notes: "Keep your body as rigid as possible throughout the ROM."
