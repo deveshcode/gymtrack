@@ -156,6 +156,78 @@ def append_session_log(
     save_logs(logs)
 
 
+def sort_logs_desc(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        logs,
+        key=lambda session: (
+            session.get("session_date", ""),
+            session.get("logged_at", ""),
+        ),
+        reverse=True,
+    )
+
+
+def render_history(logs: list[dict[str, Any]], selected_week_label: str) -> None:
+    st.markdown("#### All logged sessions")
+
+    if not logs:
+        st.write("No sessions have been logged yet.")
+        return
+
+    available_weeks = ["All weeks"] + sorted(
+        {session.get("week_label", "Unknown week") for session in logs}
+    )
+    week_filter = st.selectbox(
+        "Filter history by week",
+        options=available_weeks,
+        index=available_weeks.index(selected_week_label)
+        if selected_week_label in available_weeks
+        else 0,
+    )
+
+    filtered_logs = logs
+    if week_filter != "All weeks":
+        filtered_logs = [
+            session
+            for session in filtered_logs
+            if session.get("week_label") == week_filter
+        ]
+
+    if not filtered_logs:
+        st.write("No logged sessions match this filter yet.")
+        return
+
+    for session in filtered_logs:
+        session_label = session.get("session_date", "Unknown date")
+        workout_label = (
+            f"{session.get('week_label', 'Unknown week')} - "
+            f"{session.get('day_label', 'Unknown workout')}"
+        )
+        with st.expander(f"{session_label} | {workout_label}", expanded=False):
+            st.caption(f"Saved at {session.get('logged_at', 'Unknown time')}")
+            if session.get("overall_notes"):
+                st.write(session["overall_notes"])
+
+            history_rows = []
+            for item in session.get("entries", []):
+                history_rows.append(
+                    {
+                        "Exercise": item.get("exercise", ""),
+                        "Set 1 Load": item.get("set_1_load", ""),
+                        "Set 1 Reps": item.get("set_1_reps", ""),
+                        "Set 2 Load": item.get("set_2_load", ""),
+                        "Set 2 Reps": item.get("set_2_reps", ""),
+                        "Notes": item.get("session_notes", ""),
+                    }
+                )
+
+            st.dataframe(
+                pd.DataFrame(history_rows),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+
 def main() -> None:
     st.title("GymTrack")
     st.write(
@@ -166,7 +238,7 @@ def main() -> None:
     )
 
     program = load_program()
-    logs = load_logs()
+    logs = sort_logs_desc(load_logs())
 
     weeks = program.get("weeks", {})
     if not weeks:
@@ -213,27 +285,33 @@ def main() -> None:
         "Working Sets", sum(int(item["working_sets"]) for item in exercises)
     )
     overview_columns[2].metric(
-        "Longest Rest",
-        max((item["rest"] for item in exercises), key=len),
+        "Latest Logs",
+        len(logs),
     )
-    overview_columns[3].metric(
-        "Focus",
-        selected_day_label,
-    )
+    overview_columns[3].metric("Focus", selected_day_label)
 
-    plan_tab, log_tab, history_tab = st.tabs(["Planned Workout", "Log Session", "History"])
+    plan_tab, log_tab, history_tab = st.tabs(
+        ["Planned Workout", "Log Session", "Session History"]
+    )
 
     with plan_tab:
         st.markdown("#### Exercise cards")
         render_exercise_cards(exercises)
 
         st.markdown("#### Table view")
-        st.dataframe(build_plan_table(exercises), use_container_width=True, hide_index=True)
+        st.dataframe(
+            build_plan_table(exercises),
+            use_container_width=True,
+            hide_index=True,
+        )
 
     matching_logs = filter_logs(logs, selected_week_key, selected_day_key)
 
     with log_tab:
         st.markdown("#### Log today's workout")
+        st.caption(
+            "Logs are saved globally and will show up in the centralized session history tab."
+        )
         default_editor = build_log_editor_data(exercises, matching_logs)
 
         with st.form(key=f"log-form-{selected_week_key}-{selected_day_key}"):
@@ -248,7 +326,9 @@ def main() -> None:
                     "Set 1 Reps": st.column_config.TextColumn("Set 1 Reps"),
                     "Set 2 Load": st.column_config.TextColumn("Set 2 Load"),
                     "Set 2 Reps": st.column_config.TextColumn("Set 2 Reps"),
-                    "Session Notes": st.column_config.TextColumn("Session Notes", width="large"),
+                    "Session Notes": st.column_config.TextColumn(
+                        "Session Notes", width="large"
+                    ),
                 },
             )
             overall_notes = st.text_area(
@@ -276,37 +356,7 @@ def main() -> None:
                 st.rerun()
 
     with history_tab:
-        st.markdown("#### Previous logs")
-
-        if not matching_logs:
-            st.write("No logs saved for this workout yet.")
-            return
-
-        for session in reversed(matching_logs):
-            session_label = session.get("session_date", "Unknown date")
-            with st.expander(f"Session on {session_label}", expanded=False):
-                st.caption(f"Saved at {session.get('logged_at', 'Unknown time')}")
-                if session.get("overall_notes"):
-                    st.write(session["overall_notes"])
-
-                history_rows = []
-                for item in session.get("entries", []):
-                    history_rows.append(
-                        {
-                            "Exercise": item.get("exercise", ""),
-                            "Set 1 Load": item.get("set_1_load", ""),
-                            "Set 1 Reps": item.get("set_1_reps", ""),
-                            "Set 2 Load": item.get("set_2_load", ""),
-                            "Set 2 Reps": item.get("set_2_reps", ""),
-                            "Notes": item.get("session_notes", ""),
-                        }
-                    )
-
-                st.dataframe(
-                    pd.DataFrame(history_rows),
-                    use_container_width=True,
-                    hide_index=True,
-                )
+        render_history(logs, selected_week_label)
 
 
 if __name__ == "__main__":

@@ -96,3 +96,312 @@ weeks:
             substitution_1: "Bent-Knee Dragon Flag"
             substitution_2: "Lying Leg Raise"
             notes: "Keep your body as rigid as possible throughout the ROM."
+      lower_1:
+        label: "Lower 1"
+        exercises:
+          - exercise: "Lying Leg Curl"
+            intensity_technique: "N/A"
+            warm_up_sets: "1-2"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Seated Leg Curl"
+            substitution_2: "Nordic Ham Curl"
+            notes: "Set the machine so that you get the biggest stretch possible at the bottom. Prevent your butt from popping up as you curl."
+          - exercise: "Squat (Your Choice)"
+            intensity_technique: "N/A"
+            warm_up_sets: "2-4"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 3
+            rir_set_2: 2
+            rest: "3-5 min"
+            substitution_1: "See Notes"
+            substitution_2: "See Notes"
+            notes: "This can be a Barbell Back Squat, Barbell Front Squat, Pendulum Squat, Hack Squat, Belt Squat, or Smith Machine Squat."
+          - exercise: "Smith Machine Lunge"
+            intensity_technique: "N/A"
+            warm_up_sets: "2-4"
+            working_sets: 1
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: "N/A"
+            rest: "2-4 min"
+            substitution_1: "DB Lunge"
+            substitution_2: "Barbell Lunge"
+            notes: "Minimize contribution from your back leg!"
+          - exercise: "Leg Extension"
+            intensity_technique: "N/A"
+            warm_up_sets: "1-2"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Reverse Nordic"
+            substitution_2: "Sissy Squat"
+            notes: "Set the seat back as far as it will go while still feeling comfortable. Grab the handles as hard as you can to pull your butt down into the seat (using straps can help here)."
+          - exercise: "Machine Hip Abduction"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 1
+            rep_range: "6-8"
+            rir_set_1: 0
+            rir_set_2: "N/A"
+            rest: "1-2 min"
+            substitution_1: "Cable Hip Abduction"
+            substitution_2: "Standing Plate Abduction"
+            notes: "If possible, place foam pads in between the outside of your knees and the pads on the machine. This will increase your range of motion on the machine."
+          - exercise: "Standing Calf Raise"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Leg Press Calf Press"
+            substitution_2: "Donkey Calf Raise"
+            notes: "1-2 second pause at the bottom of each rep. Instead of just going up onto your toes, think about rolling your ankle back and forth on the balls of your feet."
+      upper_2:
+        label: "Upper 2"
+        exercises:
+          - exercise: "Close-Grip Lat Pulldown"
+            intensity_technique: "N/A"
+            warm_up_sets: "2-3"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 2
+            rir_set_2: 1
+            rest: "2-3 min"
+            substitution_1: "Close-Grip Pull-Up"
+            substitution_2: "1-Arm Cable Pulldown"
+            notes: "Lean back by ~15° and drive your elbows down as you squeeze your shoulder blades together. This should feel like a mix of lats and mid-traps."
+          - exercise: "Chest-Supported T-Bar Row"
+            intensity_technique: "N/A"
+            warm_up_sets: "2-3"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 2
+            rir_set_2: 1
+            rest: "2-3 min"
+            substitution_1: "Chest-Supported Machine Row"
+            substitution_2: "Chest-Supported DB Row"
+            notes: "Flare elbows out at roughly 45° and squeeze your shoulder blades together hard at the top of each rep."
+          - exercise: "Machine Shrug"
+            intensity_technique: "N/A"
+            warm_up_sets: "1-2"
+            working_sets: 1
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: "N/A"
+            rest: "1-2 min"
+            substitution_1: "Barbell Shrug"
+            substitution_2: "Cable Shrug-In"
+            notes: "Think about shrugging \"up to your ears\". Use straps, if possible."
+          - exercise: "Machine Chest Press"
+            intensity_technique: "N/A"
+            warm_up_sets: "2-4"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 2
+            rir_set_2: 1
+            rest: "3-5 min"
+            substitution_1: "Smith Machine Bench Press"
+            substitution_2: "DB Bench Press"
+            notes: "1 second pause at the bottom of each rep while maintaining tension on the pecs."
+          - exercise: "High-Cable Lateral Raise"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "DB Lateral Raise"
+            substitution_2: "Machine Lateral Raise"
+            notes: "Set the cable at roughly hip height. Let your hand go slightly past your midline at the bottom of each rep to get a deep stretch on the side delt."
+          - exercise: "1-Arm Reverse Pec Deck"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 1
+            rep_range: "8-10"
+            rir_set_1: 0
+            rir_set_2: "N/A"
+            rest: "1-2 min"
+            substitution_1: "Lying Reverse DB Flye"
+            substitution_2: "Reverse Cable Crossover"
+            notes: "Sweep the weight out to create the largest semi-circle possible with your arm."
+          - exercise: "Cable Crunch"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Weighted Crunch"
+            substitution_2: "Machine Crunch"
+            notes: "Round your lower back as you crunch. Maintain a mind-muscle connection with your 6-pack."
+      lower_2:
+        label: "Lower 2"
+        exercises:
+          - exercise: "Leg Extension"
+            intensity_technique: "N/A"
+            warm_up_sets: "1-2"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Reverse Nordic"
+            substitution_2: "Sissy Squat"
+            notes: "Set the seat back as far as it will go while still feeling comfortable. Grab the handles as hard as you can to pull your butt down into the seat (using straps can help here)."
+          - exercise: "Barbell RDL"
+            intensity_technique: "N/A"
+            warm_up_sets: "2-3"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 3
+            rir_set_2: 2
+            rest: "2-3 min"
+            substitution_1: "DB RDL"
+            substitution_2: "Seated Cable Deadlift"
+            notes: "Stick your glutes straight back as you lower the bar straight down, centered over the middle of your foot. Get a nice deep stretch at the bottom, but keep your spine neutral (don't round forward)."
+          - exercise: "Machine Hip Thrust"
+            intensity_technique: "N/A"
+            warm_up_sets: "2-4"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 2
+            rir_set_2: 1
+            rest: "2-3 min"
+            substitution_1: "Barbell Hip Thrust"
+            substitution_2: "45° Hyperextension"
+            notes: "Squeeze your glutes hard at the top and control the weight on the way down."
+          - exercise: "Leg Press"
+            intensity_technique: "N/A"
+            warm_up_sets: "2-4"
+            working_sets: 1
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: "N/A"
+            rest: "2-3 min"
+            substitution_1: "Smith Machine Squat"
+            substitution_2: "Barbell Squat"
+            notes: "Feet lower on the platform for more quad focus. Get as deep as you can without excessive back rounding."
+          - exercise: "Standing Calf Raise"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Leg Press Calf Press"
+            substitution_2: "Donkey Calf Raise"
+            notes: "1-2 second pause at the bottom of each rep. Instead of just going up onto your toes, think about rolling your ankle back and forth on the balls of your feet."
+      arms_delts:
+        label: "Arms/Delts"
+        exercises:
+          - exercise: "Bayesian Cable Curl"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "6-8"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Incline DB Curl"
+            substitution_2: "Standing DB Curl"
+            notes: "As you curl, optionally lean forward to prevent the cable from hitting your wrist at the top. Control the negative and feel a deep stretch at the bottom of each rep."
+          - exercise: "Overhead Cable Triceps Extension"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Overhead DB Triceps Extension"
+            substitution_2: "Skull Crusher"
+            notes: "Feel a deep stretch on the triceps throughout the entire negative."
+          - exercise: "Modified Zottman Curl"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 1
+            rep_range: "8-10"
+            rir_set_1: 0
+            rir_set_2: "N/A"
+            rest: "1-2 min"
+            substitution_1: "DB Hammer Curl"
+            substitution_2: "Preacher Hammer Curl"
+            notes: "Hammer curl on the way up and supinated curl (palms up) on the way down."
+          - exercise: "Cable Triceps Kickback"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Seated Dip Machine"
+            substitution_2: "Close Grip Dip"
+            notes: "Keep your upper arm behind your torso throughout the ROM."
+          - exercise: "DB Wrist Curl"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Cable Wrist Curl"
+            substitution_2: "N/A"
+            notes: "Smooth, controlled reps."
+          - exercise: "DB Wrist Extension"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "Cable Wrist Extension"
+            substitution_2: "N/A"
+            notes: "Smooth, controlled reps."
+          - exercise: "Alternating DB Curl"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 1
+            rep_range: "6-8"
+            rir_set_1: 0
+            rir_set_2: "N/A"
+            rest: "1-2 min"
+            substitution_1: "Barbell Curl"
+            substitution_2: "EZ-Bar Curl"
+            notes: "Slow, controlled reps!"
+          - exercise: "Machine Lateral Raise"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "8-10"
+            rir_set_1: 1
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "High-Cable Lateral Raise"
+            substitution_2: "DB Lateral Raise"
+            notes: "Focus on squeezing your side delt to move the weight."
+          - exercise: "Dead Hang (optional)"
+            intensity_technique: "N/A"
+            warm_up_sets: "0-1"
+            working_sets: 2
+            rep_range: "N/A"
+            rir_set_1: 0
+            rir_set_2: 0
+            rest: "1-2 min"
+            substitution_1: "N/A"
+            substitution_2: "N/A"
+            notes: "Try to add a few more seconds each week!"
