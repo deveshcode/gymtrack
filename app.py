@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,186 @@ st.set_page_config(
 BASE_DIR = Path(__file__).resolve().parent
 PROGRAM_PATH = BASE_DIR / "data" / "program.yaml"
 LOGS_PATH = BASE_DIR / "data" / "workout_logs.json"
+LOG_COLUMNS = [
+    "session_id",
+    "logged_at",
+    "session_date",
+    "week_key",
+    "week_label",
+    "day_key",
+    "day_label",
+    "overall_notes",
+    "exercise",
+    "set_1_load",
+    "set_1_reps",
+    "set_2_load",
+    "set_2_reps",
+    "session_notes",
+]
+
+
+class LogStore:
+    name = "Unknown"
+    durable = False
+
+    def load_logs(self) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    def append_session_log(
+        self,
+        week_key: str,
+        week_label: str,
+        day_key: str,
+        day_label: str,
+        session_date: date,
+        session_rows: pd.DataFrame,
+        overall_notes: str,
+    ) -> None:
+        raise NotImplementedError
+
+
+class LocalJsonLogStore(LogStore):
+    name = "Local JSON file"
+    durable = False
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+    def load_logs(self) -> list[dict[str, Any]]:
+        if not self.path.exists():
+            return []
+
+        with self.path.open("r", encoding="utf-8") as file:
+            payload = json.load(file)
+            return payload if isinstance(payload, list) else []
+
+    def append_session_log(
+        self,
+        week_key: str,
+        week_label: str,
+        day_key: str,
+        day_label: str,
+        session_date: date,
+        session_rows: pd.DataFrame,
+        overall_notes: str,
+    ) -> None:
+        logs = self.load_logs()
+        logs.append(
+            build_session_log(
+                week_key=week_key,
+                week_label=week_label,
+                day_key=day_key,
+                day_label=day_label,
+                session_date=session_date,
+                session_rows=session_rows,
+                overall_notes=overall_notes,
+            )
+        )
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("w", encoding="utf-8") as file:
+            json.dump(logs, file, indent=2)
+
+
+class GoogleSheetsLogStore(LogStore):
+    name = "Google Sheets"
+    durable = True
+
+    def __init__(self, service_account_info: dict[str, Any], config: dict[str, Any]) -> None:
+        self.service_account_info = service_account_info
+        self.spreadsheet_id = config.get("spreadsheet_id", "").strip()
+        self.spreadsheet_name = config.get("spreadsheet_name", "").strip()
+        self.worksheet_name = config.get("worksheet_name", "session_logs").strip()
+
+    def load_logs(self) -> list[dict[str, Any]]:
+        worksheet = self._get_worksheet()
+        rows = worksheet.get_all_records(expected_headers=LOG_COLUMNS)
+        return rows_to_sessions(rows)
+
+    def append_session_log(
+        self,
+        week_key: str,
+        week_label: str,
+        day_key: str,
+        day_label: str,
+        session_date: date,
+        session_rows: pd.DataFrame,
+        overall_notes: str,
+    ) -> None:
+        session = build_session_log(
+            week_key=week_key,
+            week_label=week_label,
+            day_key=day_key,
+            day_label=day_label,
+            session_date=session_date,
+            session_rows=session_rows,
+            overall_notes=overall_notes,
+        )
+        worksheet = self._get_worksheet()
+        rows = []
+        for entry in session["entries"]:
+            rows.append(
+                [
+                    session["session_id"],
+                    session["logged_at"],
+                    session["session_date"],
+                    session["week_key"],
+                    session["week_label"],
+                    session["day_key"],
+                    session["day_label"],
+                    session["overall_notes"],
+                    entry["exercise"],
+                    entry["set_1_load"],
+                    entry["set_1_reps"],
+                    entry["set_2_load"],
+                    entry["set_2_reps"],
+                    entry["session_notes"],
+                ]
+            )
+        worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+
+    def _get_worksheet(self):
+        try:
+            import gspread
+            from google.oauth2.service_account import Credentials
+        except ImportError as error:
+            raise RuntimeError(
+                "Google Sheets dependencies are not installed. Add gspread and google-auth."
+            ) from error
+
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+        credentials = Credentials.from_service_account_info(
+            self.service_account_info,
+            scopes=scopes,
+        )
+        client = gspread.authorize(credentials)
+
+        if self.spreadsheet_id:
+            spreadsheet = client.open_by_key(self.spreadsheet_id)
+        elif self.spreadsheet_name:
+            spreadsheet = client.open(self.spreadsheet_name)
+        else:
+            raise RuntimeError(
+                "Missing Google Sheets configuration. Provide spreadsheet_id or spreadsheet_name in Streamlit secrets."
+            )
+
+        try:
+            worksheet = spreadsheet.worksheet(self.worksheet_name)
+        except gspread.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(
+                title=self.worksheet_name,
+                rows=1000,
+                cols=len(LOG_COLUMNS) + 2,
+            )
+
+        current_header = worksheet.row_values(1)
+        if current_header != LOG_COLUMNS:
+            worksheet.clear()
+            worksheet.append_row(LOG_COLUMNS, value_input_option="USER_ENTERED")
+
+        return worksheet
 
 
 def load_program() -> dict[str, Any]:
@@ -26,19 +207,93 @@ def load_program() -> dict[str, Any]:
         return yaml.safe_load(file) or {}
 
 
-def load_logs() -> list[dict[str, Any]]:
-    if not LOGS_PATH.exists():
-        return []
+def build_session_log(
+    week_key: str,
+    week_label: str,
+    day_key: str,
+    day_label: str,
+    session_date: date,
+    session_rows: pd.DataFrame,
+    overall_notes: str,
+) -> dict[str, Any]:
+    session = {
+        "session_id": str(uuid.uuid4()),
+        "logged_at": datetime.now().isoformat(timespec="seconds"),
+        "session_date": session_date.isoformat(),
+        "week_key": week_key,
+        "week_label": week_label,
+        "day_key": day_key,
+        "day_label": day_label,
+        "overall_notes": overall_notes.strip(),
+        "entries": [],
+    }
 
-    with LOGS_PATH.open("r", encoding="utf-8") as file:
-        payload = json.load(file)
-        return payload if isinstance(payload, list) else []
+    for row in session_rows.to_dict(orient="records"):
+        session["entries"].append(
+            {
+                "exercise": row["Exercise"],
+                "set_1_load": str(row["Set 1 Load"]).strip(),
+                "set_1_reps": str(row["Set 1 Reps"]).strip(),
+                "set_2_load": str(row["Set 2 Load"]).strip(),
+                "set_2_reps": str(row["Set 2 Reps"]).strip(),
+                "session_notes": str(row["Session Notes"]).strip(),
+            }
+        )
+
+    return session
 
 
-def save_logs(logs: list[dict[str, Any]]) -> None:
-    LOGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with LOGS_PATH.open("w", encoding="utf-8") as file:
-        json.dump(logs, file, indent=2)
+def rows_to_sessions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    sessions_by_id: dict[str, dict[str, Any]] = {}
+
+    for row in rows:
+        session_id = str(row.get("session_id", "")).strip()
+        if not session_id:
+            continue
+
+        session = sessions_by_id.setdefault(
+            session_id,
+            {
+                "session_id": session_id,
+                "logged_at": str(row.get("logged_at", "")).strip(),
+                "session_date": str(row.get("session_date", "")).strip(),
+                "week_key": str(row.get("week_key", "")).strip(),
+                "week_label": str(row.get("week_label", "")).strip(),
+                "day_key": str(row.get("day_key", "")).strip(),
+                "day_label": str(row.get("day_label", "")).strip(),
+                "overall_notes": str(row.get("overall_notes", "")).strip(),
+                "entries": [],
+            },
+        )
+
+        session["entries"].append(
+            {
+                "exercise": str(row.get("exercise", "")).strip(),
+                "set_1_load": str(row.get("set_1_load", "")).strip(),
+                "set_1_reps": str(row.get("set_1_reps", "")).strip(),
+                "set_2_load": str(row.get("set_2_load", "")).strip(),
+                "set_2_reps": str(row.get("set_2_reps", "")).strip(),
+                "session_notes": str(row.get("session_notes", "")).strip(),
+            }
+        )
+
+    return list(sessions_by_id.values())
+
+
+def get_log_store() -> tuple[LogStore, str | None]:
+    google_config = dict(st.secrets.get("google_sheets", {}))
+    service_account_info = dict(st.secrets.get("gcp_service_account", {}))
+
+    if google_config and service_account_info:
+        try:
+            return GoogleSheetsLogStore(service_account_info, google_config), None
+        except Exception as error:
+            return (
+                LocalJsonLogStore(LOGS_PATH),
+                f"Google Sheets is configured, but the app fell back to local JSON: {error}",
+            )
+
+    return LocalJsonLogStore(LOGS_PATH), None
 
 
 def build_plan_table(exercises: list[dict[str, Any]]) -> pd.DataFrame:
@@ -119,43 +374,6 @@ def filter_logs(
     ]
 
 
-def append_session_log(
-    logs: list[dict[str, Any]],
-    week_key: str,
-    week_label: str,
-    day_key: str,
-    day_label: str,
-    session_date: date,
-    session_rows: pd.DataFrame,
-    overall_notes: str,
-) -> None:
-    log_entry = {
-        "logged_at": datetime.now().isoformat(timespec="seconds"),
-        "session_date": session_date.isoformat(),
-        "week_key": week_key,
-        "week_label": week_label,
-        "day_key": day_key,
-        "day_label": day_label,
-        "overall_notes": overall_notes.strip(),
-        "entries": [],
-    }
-
-    for row in session_rows.to_dict(orient="records"):
-        log_entry["entries"].append(
-            {
-                "exercise": row["Exercise"],
-                "set_1_load": str(row["Set 1 Load"]).strip(),
-                "set_1_reps": str(row["Set 1 Reps"]).strip(),
-                "set_2_load": str(row["Set 2 Load"]).strip(),
-                "set_2_reps": str(row["Set 2 Reps"]).strip(),
-                "session_notes": str(row["Session Notes"]).strip(),
-            }
-        )
-
-    logs.append(log_entry)
-    save_logs(logs)
-
-
 def sort_logs_desc(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(
         logs,
@@ -228,17 +446,29 @@ def render_history(logs: list[dict[str, Any]], selected_week_label: str) -> None
             )
 
 
+def render_storage_status(log_store: LogStore, warning: str | None) -> None:
+    if warning:
+        st.warning(warning)
+
+    if log_store.durable:
+        st.success(f"Log storage: {log_store.name}. Session logs are persistent.")
+    else:
+        st.info(
+            f"Log storage: {log_store.name}. This works locally, but Streamlit Community Cloud will not keep app-written JSON files permanently."
+        )
+
+
 def main() -> None:
     st.title("GymTrack")
     st.write(
         "Browse your plan, log your session, and keep expanding the program over time."
     )
-    st.info(
-        "This version stores logs in a local JSON file. That works locally, but Streamlit Community Cloud does not provide durable file storage for long-term logging."
-    )
+
+    log_store, storage_warning = get_log_store()
+    render_storage_status(log_store, storage_warning)
 
     program = load_program()
-    logs = sort_logs_desc(load_logs())
+    logs = sort_logs_desc(log_store.load_logs())
 
     weeks = program.get("weeks", {})
     if not weeks:
@@ -268,6 +498,7 @@ def main() -> None:
     st.sidebar.caption(f"Program: {program.get('program_name', 'Workout Program')}")
     st.sidebar.caption(f"Block: {selected_week.get('block', 'N/A')}")
     st.sidebar.caption(f"Phase: {selected_week.get('phase', 'N/A')}")
+    st.sidebar.caption(f"Logs: {log_store.name}")
 
     exercises = selected_day.get("exercises", [])
     if not exercises:
@@ -284,10 +515,7 @@ def main() -> None:
     overview_columns[1].metric(
         "Working Sets", sum(int(item["working_sets"]) for item in exercises)
     )
-    overview_columns[2].metric(
-        "Latest Logs",
-        len(logs),
-    )
+    overview_columns[2].metric("Logged Sessions", len(logs))
     overview_columns[3].metric("Focus", selected_day_label)
 
     plan_tab, log_tab, history_tab = st.tabs(
@@ -339,8 +567,7 @@ def main() -> None:
 
         if submitted:
             try:
-                append_session_log(
-                    logs=logs,
+                log_store.append_session_log(
                     week_key=selected_week_key,
                     week_label=selected_week_label,
                     day_key=selected_day_key,
@@ -349,10 +576,10 @@ def main() -> None:
                     session_rows=edited_df,
                     overall_notes=overall_notes,
                 )
-            except OSError as error:
+            except Exception as error:
                 st.error(f"Could not save the session log: {error}")
             else:
-                st.success("Session saved to data/workout_logs.json")
+                st.success(f"Session saved to {log_store.name}")
                 st.rerun()
 
     with history_tab:
