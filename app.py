@@ -36,6 +36,8 @@ LOG_COLUMNS = [
     "set_2_reps",
     "session_notes",
 ]
+REPS_PRESETS = ["6", "8", "10"]
+WEIGHT_PRESETS = ["25", "50", "100"]
 
 
 class LogStore:
@@ -343,6 +345,119 @@ def build_log_editor_data(
     return pd.DataFrame(rows)
 
 
+def get_preset_or_custom(value: Any, presets: list[str]) -> tuple[str | None, str]:
+    cleaned_value = str(value).strip()
+    if not cleaned_value:
+        return None, ""
+    if cleaned_value in presets:
+        return cleaned_value, ""
+    return None, cleaned_value
+
+
+def render_quick_pick_input(
+    label: str,
+    widget_prefix: str,
+    presets: list[str],
+    default_value: Any,
+) -> str:
+    selected_preset, custom_default = get_preset_or_custom(default_value, presets)
+    option_labels = ["None", *presets]
+    selected_option = st.radio(
+        label,
+        options=option_labels,
+        index=option_labels.index(selected_preset) if selected_preset else 0,
+        horizontal=True,
+        key=f"{widget_prefix}_preset",
+    )
+    custom_value = st.text_input(
+        f"{label} custom",
+        value=custom_default,
+        placeholder="Custom",
+        key=f"{widget_prefix}_custom",
+    ).strip()
+
+    if custom_value:
+        return custom_value
+    if selected_option == "None":
+        return ""
+    return selected_option
+
+
+def build_log_rows_from_form(
+    exercises: list[dict[str, Any]], previous_logs: list[dict[str, Any]]
+) -> pd.DataFrame:
+    previous_rows = build_log_editor_data(exercises, previous_logs)
+    previous_by_exercise = {
+        row["Exercise"]: row for row in previous_rows.to_dict(orient="records")
+    }
+
+    rows = []
+    for index, entry in enumerate(exercises):
+        exercise_name = entry["exercise"]
+        previous = previous_by_exercise.get(exercise_name, {})
+
+        with st.container(border=True):
+            st.markdown(f"### {index + 1}. {exercise_name}")
+            st.caption(
+                f"Target: {entry['rep_range']} reps | Rest: {entry['rest']} | "
+                f"RIR: {entry['rir_set_1']} / {entry['rir_set_2']}"
+            )
+            if any(previous.get(field, "") for field in ("Set 1 Load", "Set 1 Reps", "Set 2 Load", "Set 2 Reps")):
+                st.caption(
+                    "Previous: "
+                    f"S1 {previous.get('Set 1 Load', '-') or '-'} x {previous.get('Set 1 Reps', '-') or '-'} | "
+                    f"S2 {previous.get('Set 2 Load', '-') or '-'} x {previous.get('Set 2 Reps', '-') or '-'}"
+                )
+
+            st.markdown("**Set 1**")
+            set_1_reps = render_quick_pick_input(
+                "Reps",
+                f"{exercise_name}_{index}_set1_reps",
+                REPS_PRESETS,
+                previous.get("Set 1 Reps", ""),
+            )
+            set_1_load = render_quick_pick_input(
+                "Weight",
+                f"{exercise_name}_{index}_set1_load",
+                WEIGHT_PRESETS,
+                previous.get("Set 1 Load", ""),
+            )
+
+            st.markdown("**Set 2**")
+            set_2_reps = render_quick_pick_input(
+                "Reps",
+                f"{exercise_name}_{index}_set2_reps",
+                REPS_PRESETS,
+                previous.get("Set 2 Reps", ""),
+            )
+            set_2_load = render_quick_pick_input(
+                "Weight",
+                f"{exercise_name}_{index}_set2_load",
+                WEIGHT_PRESETS,
+                previous.get("Set 2 Load", ""),
+            )
+
+            session_notes = st.text_input(
+                "Exercise notes",
+                value=previous.get("Session Notes", ""),
+                placeholder="Optional notes for this exercise",
+                key=f"{exercise_name}_{index}_notes",
+            ).strip()
+
+        rows.append(
+            {
+                "Exercise": exercise_name,
+                "Set 1 Load": set_1_load,
+                "Set 1 Reps": set_1_reps,
+                "Set 2 Load": set_2_load,
+                "Set 2 Reps": set_2_reps,
+                "Session Notes": session_notes,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
 def render_exercise_cards(exercises: list[dict[str, Any]]) -> None:
     for index, entry in enumerate(exercises, start=1):
         with st.container(border=True):
@@ -540,25 +655,10 @@ def main() -> None:
         st.caption(
             "Logs are saved globally and will show up in the centralized session history tab."
         )
-        default_editor = build_log_editor_data(exercises, matching_logs)
 
         with st.form(key=f"log-form-{selected_week_key}-{selected_day_key}"):
             session_date = st.date_input("Session date", value=date.today())
-            edited_df = st.data_editor(
-                default_editor,
-                use_container_width=True,
-                hide_index=True,
-                disabled=["Exercise"],
-                column_config={
-                    "Set 1 Load": st.column_config.TextColumn("Set 1 Load"),
-                    "Set 1 Reps": st.column_config.TextColumn("Set 1 Reps"),
-                    "Set 2 Load": st.column_config.TextColumn("Set 2 Load"),
-                    "Set 2 Reps": st.column_config.TextColumn("Set 2 Reps"),
-                    "Session Notes": st.column_config.TextColumn(
-                        "Session Notes", width="large"
-                    ),
-                },
-            )
+            edited_df = build_log_rows_from_form(exercises, matching_logs)
             overall_notes = st.text_area(
                 "Overall session notes",
                 placeholder="Energy, pumps, substitutions used, or anything to remember next time.",
