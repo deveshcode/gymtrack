@@ -9,6 +9,7 @@ weeks:
         label: "Upper 1"
         exercises:
           - exercise: "Barbell Incline Press"
+            video_url: "https://youtu.be/ad0NL7TH2-I"
             intensity_technique: "N/A"
             warm_up_sets: "2-4"
             working_sets: 2
@@ -20,6 +21,7 @@ weeks:
             substitution_2: "DB Incline Press"
             notes: "A 30° or 45° bench will work here. Pause for 1 second at the bottom of each rep while maintaining tension on the pecs."
           - exercise: "Pec Deck"
+            video_url: "https://youtu.be/xei-JEpfAS4"
             intensity_technique: "N/A"
             warm_up_sets: "1-2"
             working_sets: 2
@@ -31,6 +33,7 @@ weeks:
             substitution_2: "Cable Flye"
             notes: "Pause for 1 second at the bottom of each rep while maintaining tension on the pecs."
           - exercise: "Incline DB Y-Raise"
+            video_url: "https://youtu.be/xaOQJjzNrd8"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -42,6 +45,7 @@ weeks:
             substitution_2: "Machine Lateral Raise"
             notes: "Use a 30° incline bench (back against the bench) and lift the weight up and out in a Y shape."
           - exercise: "Pull-Up (Wide Grip)"
+            video_url: "https://youtu.be/oB27u_w3pX4"
             intensity_technique: "N/A"
             warm_up_sets: "1-2"
             working_sets: 2
@@ -53,6 +57,7 @@ weeks:
             substitution_2: "1-Arm Cable Pulldown"
             notes: "Control the negative and feel your lats pulling apart. Full ROM!"
           - exercise: "Kelso Shrug"
+            video_url: "https://youtu.be/qULwEAa7Lfo"
             intensity_technique: "N/A"
             warm_up_sets: "1-2"
             working_sets: 2
@@ -64,6 +69,7 @@ weeks:
             substitution_2: "Incline DB Kelso Shrug"
             notes: "Pause for about 1 second at the top and then allow your shoulder blades to peel apart on the way back down, under control."
           - exercise: "EZ-Bar Preacher Curl"
+            video_url: "https://youtu.be/zX0KvQCLbac"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -75,6 +81,7 @@ weeks:
             substitution_2: "DB Preacher Curl"
             notes: "Keep your triceps firmly pinned against the pad as you curl. Smooth controlled reps."
           - exercise: "Triceps Pressdown"
+            video_url: "https://youtu.be/B5S2mbg0g5c"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -86,6 +93,7 @@ weeks:
             substitution_2: "Smith Machine JM Press"
             notes: "You can use a rope or bar attachment for these, whichever you find more comfortable."
           - exercise: "Dragon Flag"
+            video_url: "https://youtu.be/p6VfK1YDhhQ"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -100,6 +108,7 @@ weeks:
         label: "Lower 1"
         exercises:
           - exercise: "Lying Leg Curl"
+            video_url: "https://youtu.be/oWJBLChYZOQ"
             intensity_technique: "N/A"
             warm_up_sets: "1-2"
             working_sets: 2
@@ -111,6 +120,7 @@ weeks:
             substitution_2: "Nordic Ham Curl"
             notes: "Set the machine so that you get the biggest stretch possible at the bottom. Prevent your butt from popping up as you curl."
           - exercise: "Squat (Your Choice)"
+            video_url: "https://youtu.be/v3N4tpPpmyQ"
             intensity_technique: "N/A"
             warm_up_sets: "2-4"
             working_sets: 2
@@ -122,6 +132,7 @@ weeks:
             substitution_2: "See Notes"
             notes: "This can be a Barbell Back Squat, Barbell Front Squat, Pendulum Squat, Hack Squat, Belt Squat, or Smith Machine Squat."
           - exercise: "Smith Machine Lunge"
+            video_url: "https://youtu.be/FPIsTw-jh5s"
             intensity_technique: "N/A"
             warm_up_sets: "2-4"
             working_sets: 1
@@ -133,6 +144,7 @@ weeks:
             substitution_2: "Barbell Lunge"
             notes: "Minimize contribution from your back leg!"
           - exercise: "Leg Extension"
+            video_url: "https://youtu.be/G0_M9LBCT0o"
             intensity_technique: "N/A"
             warm_up_sets: "1-2"
             working_sets: 2
@@ -144,6 +156,7 @@ weeks:
             substitution_2: "Sissy Squat"
             notes: "Set the seat back as far as it will go while still feeling comfortable. Grab the handles as hard as you can to pull your butt down into the seat (using straps can help here)."
           - exercise: "Machine Hip Abduction"
+            video_url: "https://youtu.be/iGd7fQffkkM"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 1
@@ -155,6 +168,7 @@ weeks:
             substitution_2: "Standing Plate Abduction"
             notes: "If possible, place foam pads in between the outside of your knees and the pads on the machine. This will increase your range of motion on the machine."
           - exercise: "Standing Calf Raise"
+            video_url: "https://youtu.be/WMkCGNwo5ts"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -169,6 +183,7 @@ weeks:
         label: "Upper 2"
         exercises:
           - exercise: "Close-Grip Lat Pulldown"
+            video_url: "https://youtu.be/7l859qd4E48"
             intensity_technique: "N/A"
             warm_up_sets: "2-3"
             working_sets: 2
@@ -180,6 +195,7 @@ weeks:
             substitution_2: "1-Arm Cable Pulldown"
             notes: "Lean back by ~15° and drive your elbows down as you squeeze your shoulder blades together. This should feel like a mix of lats and mid-traps."
           - exercise: "Chest-Supported T-Bar Row"
+            video_url: "https://youtu.be/QZ7VZpjNTG8"
             intensity_technique: "N/A"
             warm_up_sets: "2-3"
             working_sets: 2
@@ -191,6 +207,7 @@ weeks:
             substitution_2: "Chest-Supported DB Row"
             notes: "Flare elbows out at roughly 45° and squeeze your shoulder blades together hard at the top of each rep."
           - exercise: "Machine Shrug"
+            video_url: "https://youtu.be/2KDc6iAcrAw"
             intensity_technique: "N/A"
             warm_up_sets: "1-2"
             working_sets: 1
@@ -202,6 +219,7 @@ weeks:
             substitution_2: "Cable Shrug-In"
             notes: "Think about shrugging \"up to your ears\". Use straps, if possible."
           - exercise: "Machine Chest Press"
+            video_url: "https://youtu.be/qTSTOVVr8rU"
             intensity_technique: "N/A"
             warm_up_sets: "2-4"
             working_sets: 2
@@ -213,6 +231,7 @@ weeks:
             substitution_2: "DB Bench Press"
             notes: "1 second pause at the bottom of each rep while maintaining tension on the pecs."
           - exercise: "High-Cable Lateral Raise"
+            video_url: "https://youtu.be/DX1WzS7k0Uc"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -224,6 +243,7 @@ weeks:
             substitution_2: "Machine Lateral Raise"
             notes: "Set the cable at roughly hip height. Let your hand go slightly past your midline at the bottom of each rep to get a deep stretch on the side delt."
           - exercise: "1-Arm Reverse Pec Deck"
+            video_url: "https://youtu.be/WkI6IHmYORY"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 1
@@ -235,6 +255,7 @@ weeks:
             substitution_2: "Reverse Cable Crossover"
             notes: "Sweep the weight out to create the largest semi-circle possible with your arm."
           - exercise: "Cable Crunch"
+            video_url: "https://youtu.be/LvJM9V3D_CQ"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -249,6 +270,7 @@ weeks:
         label: "Lower 2"
         exercises:
           - exercise: "Leg Extension"
+            video_url: "https://youtu.be/G0_M9LBCT0o"
             intensity_technique: "N/A"
             warm_up_sets: "1-2"
             working_sets: 2
@@ -260,6 +282,7 @@ weeks:
             substitution_2: "Sissy Squat"
             notes: "Set the seat back as far as it will go while still feeling comfortable. Grab the handles as hard as you can to pull your butt down into the seat (using straps can help here)."
           - exercise: "Barbell RDL"
+            video_url: "https://youtu.be/xbnan2iNh-Q"
             intensity_technique: "N/A"
             warm_up_sets: "2-3"
             working_sets: 2
@@ -271,6 +294,7 @@ weeks:
             substitution_2: "Seated Cable Deadlift"
             notes: "Stick your glutes straight back as you lower the bar straight down, centered over the middle of your foot. Get a nice deep stretch at the bottom, but keep your spine neutral (don't round forward)."
           - exercise: "Machine Hip Thrust"
+            video_url: "https://youtu.be/1Rr1-FW6ZJs"
             intensity_technique: "N/A"
             warm_up_sets: "2-4"
             working_sets: 2
@@ -282,6 +306,7 @@ weeks:
             substitution_2: "45° Hyperextension"
             notes: "Squeeze your glutes hard at the top and control the weight on the way down."
           - exercise: "Leg Press"
+            video_url: "https://youtu.be/ksBaBSfmZf4"
             intensity_technique: "N/A"
             warm_up_sets: "2-4"
             working_sets: 1
@@ -293,6 +318,7 @@ weeks:
             substitution_2: "Barbell Squat"
             notes: "Feet lower on the platform for more quad focus. Get as deep as you can without excessive back rounding."
           - exercise: "Standing Calf Raise"
+            video_url: "https://youtu.be/WMkCGNwo5ts"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -307,6 +333,7 @@ weeks:
         label: "Arms/Delts"
         exercises:
           - exercise: "Bayesian Cable Curl"
+            video_url: "https://youtu.be/_w_Uan2dG-4"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -318,6 +345,7 @@ weeks:
             substitution_2: "Standing DB Curl"
             notes: "As you curl, optionally lean forward to prevent the cable from hitting your wrist at the top. Control the negative and feel a deep stretch at the bottom of each rep."
           - exercise: "Overhead Cable Triceps Extension"
+            video_url: "https://youtu.be/7GvY7yTEepM"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -329,6 +357,7 @@ weeks:
             substitution_2: "Skull Crusher"
             notes: "Feel a deep stretch on the triceps throughout the entire negative."
           - exercise: "Modified Zottman Curl"
+            video_url: "https://youtu.be/J0l0qQCy80Q"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 1
@@ -340,6 +369,7 @@ weeks:
             substitution_2: "Preacher Hammer Curl"
             notes: "Hammer curl on the way up and supinated curl (palms up) on the way down."
           - exercise: "Cable Triceps Kickback"
+            video_url: "https://youtu.be/FGJ64JyKod0"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -351,6 +381,7 @@ weeks:
             substitution_2: "Close Grip Dip"
             notes: "Keep your upper arm behind your torso throughout the ROM."
           - exercise: "DB Wrist Curl"
+            video_url: "https://youtu.be/HJx1sIZKDqk"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -362,6 +393,7 @@ weeks:
             substitution_2: "N/A"
             notes: "Smooth, controlled reps."
           - exercise: "DB Wrist Extension"
+            video_url: "https://youtu.be/uCAoI5FnLhs"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -373,6 +405,7 @@ weeks:
             substitution_2: "N/A"
             notes: "Smooth, controlled reps."
           - exercise: "Alternating DB Curl"
+            video_url: "https://youtu.be/kSxgX6HIYxQ"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 1
@@ -384,6 +417,7 @@ weeks:
             substitution_2: "EZ-Bar Curl"
             notes: "Slow, controlled reps!"
           - exercise: "Machine Lateral Raise"
+            video_url: "https://youtu.be/DX1WzS7k0Uc"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2
@@ -395,6 +429,7 @@ weeks:
             substitution_2: "DB Lateral Raise"
             notes: "Focus on squeezing your side delt to move the weight."
           - exercise: "Dead Hang (optional)"
+            video_url: "https://youtu.be/5M8uPbfQsbg"
             intensity_technique: "N/A"
             warm_up_sets: "0-1"
             working_sets: 2

@@ -512,15 +512,14 @@ def build_log_rows_from_form(
                     f"Substitutions: {entry['substitution_1']} | {entry['substitution_2']}"
                 )
                 st.write(entry["notes"])
-                image_url = str(entry.get("image_url", "")).strip()
+                video_url = str(entry.get("video_url", "")).strip()
                 image_path = str(entry.get("image_path", "")).strip()
-                if image_url:
-                    st.image(image_url, use_container_width=True)
+                if video_url:
+                    st.video(video_url, use_container_width=True)
                 elif image_path:
                     st.image(image_path, use_container_width=True)
                 else:
-                    st.caption("Add `image_url` or `image_path` to this exercise later to show a reference image here.")
-                    st.video("https://youtu.be/ad0NL7TH2-I")
+                    st.caption("Add `video_url` or `image_path` to this exercise later to show a reference image here.")
 
                 session_notes = st.text_input(
                     "Exercise notes",
