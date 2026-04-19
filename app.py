@@ -515,7 +515,7 @@ def build_log_rows_from_form(
                 video_url = str(entry.get("video_url", "")).strip()
                 image_path = str(entry.get("image_path", "")).strip()
                 if video_url:
-                    st.video(video_url, use_container_width=True)
+                    st.video(video_url)
                 elif image_path:
                     st.image(image_path, use_container_width=True)
                 else:
