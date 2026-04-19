@@ -720,20 +720,9 @@ def main() -> None:
     overview_columns[2].metric("Logged Sessions", len(logs))
     overview_columns[3].metric("Focus", selected_day_label)
 
-    plan_tab, log_tab, history_tab = st.tabs(
+    log_tab, history_tab = st.tabs(
         ["Log Session", "Session History"]
     )
-
-    with plan_tab:
-        st.markdown("#### Exercise cards")
-        render_exercise_cards(exercises)
-
-        st.markdown("#### Table view")
-        st.dataframe(
-            build_plan_table(exercises),
-            use_container_width=True,
-            hide_index=True,
-        )
 
     matching_logs = filter_logs(logs, selected_week_key, selected_day_key)
 
