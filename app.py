@@ -36,8 +36,6 @@ LOG_COLUMNS = [
     "set_2_reps",
     "session_notes",
 ]
-REPS_PRESETS = ["6", "8", "10"]
-WEIGHT_PRESETS = ["25", "50", "100"]
 
 
 class LogStore:
@@ -345,42 +343,87 @@ def build_log_editor_data(
     return pd.DataFrame(rows)
 
 
-def get_preset_or_custom(value: Any, presets: list[str]) -> tuple[str | None, str]:
-    cleaned_value = str(value).strip()
-    if not cleaned_value:
-        return None, ""
-    if cleaned_value in presets:
-        return cleaned_value, ""
-    return None, cleaned_value
-
-
-def render_quick_pick_input(
-    label: str,
-    widget_prefix: str,
-    presets: list[str],
-    default_value: Any,
-) -> str:
-    selected_preset, custom_default = get_preset_or_custom(default_value, presets)
-    option_labels = ["None", *presets]
-    selected_option = st.radio(
-        label,
-        options=option_labels,
-        index=option_labels.index(selected_preset) if selected_preset else 0,
-        horizontal=True,
-        key=f"{widget_prefix}_preset",
+def render_log_session_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stTextInput"] input[aria-label^="wt_"] {
+            border: 2px solid #c74d46;
+            background: rgba(199, 77, 70, 0.08);
+            font-weight: 700;
+            text-align: center;
+        }
+        div[data-testid="stTextInput"] input[aria-label^="rep_"] {
+            border: 2px solid #3d7be0;
+            background: rgba(61, 123, 224, 0.08);
+            font-weight: 700;
+            text-align: center;
+        }
+        div[data-testid="stTextInput"] input[aria-label^="wt_"]::placeholder {
+            color: #8d2d28;
+        }
+        div[data-testid="stTextInput"] input[aria-label^="rep_"]::placeholder {
+            color: #1f5bc2;
+        }
+        .log-card {
+            border: 1px solid rgba(34, 34, 34, 0.08);
+            border-radius: 18px;
+            padding: 0.9rem 0.9rem 0.25rem 0.9rem;
+            background: rgba(255, 255, 255, 0.72);
+            margin-bottom: 0.85rem;
+        }
+        .log-card-title {
+            font-size: 1.04rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-top: 0.15rem;
+        }
+        .log-card-meta {
+            font-size: 0.82rem;
+            color: #5b5b5b;
+            margin: 0.2rem 0 0.5rem 0;
+        }
+        .log-card-chip-row {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.25rem;
+        }
+        .log-card-chip {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            padding: 0.22rem 0.5rem;
+            border-radius: 999px;
+        }
+        .chip-weight {
+            color: #8d2d28;
+            background: rgba(199, 77, 70, 0.12);
+        }
+        .chip-reps {
+            color: #1f5bc2;
+            background: rgba(61, 123, 224, 0.12);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
-    custom_value = st.text_input(
-        f"{label} custom",
-        value=custom_default,
-        placeholder="Custom",
-        key=f"{widget_prefix}_custom",
-    ).strip()
 
-    if custom_value:
-        return custom_value
-    if selected_option == "None":
-        return ""
-    return selected_option
+
+def render_log_input(
+    label: str,
+    key: str,
+    default_value: Any,
+    placeholder: str,
+) -> str:
+    return st.text_input(
+        label,
+        value=str(default_value).strip(),
+        key=key,
+        placeholder=placeholder,
+        label_visibility="collapsed",
+    ).strip()
 
 
 def build_log_rows_from_form(
@@ -395,54 +438,97 @@ def build_log_rows_from_form(
     for index, entry in enumerate(exercises):
         exercise_name = entry["exercise"]
         previous = previous_by_exercise.get(exercise_name, {})
+        previous_summary = (
+            f"S1 {previous.get('Set 1 Load', '-') or '-'} x {previous.get('Set 1 Reps', '-') or '-'} | "
+            f"S2 {previous.get('Set 2 Load', '-') or '-'} x {previous.get('Set 2 Reps', '-') or '-'}"
+        )
 
-        with st.container(border=True):
-            st.markdown(f"### {index + 1}. {exercise_name}")
-            st.caption(
-                f"Target: {entry['rep_range']} reps | Rest: {entry['rest']} | "
-                f"RIR: {entry['rir_set_1']} / {entry['rir_set_2']}"
+        with st.container():
+            st.markdown('<div class="log-card">', unsafe_allow_html=True)
+
+            title_col, set_1_weight_col, set_1_reps_col, set_2_weight_col, set_2_reps_col = st.columns(
+                [2.4, 1, 1, 1, 1],
+                gap="small",
             )
-            if any(previous.get(field, "") for field in ("Set 1 Load", "Set 1 Reps", "Set 2 Load", "Set 2 Reps")):
-                st.caption(
-                    "Previous: "
-                    f"S1 {previous.get('Set 1 Load', '-') or '-'} x {previous.get('Set 1 Reps', '-') or '-'} | "
-                    f"S2 {previous.get('Set 2 Load', '-') or '-'} x {previous.get('Set 2 Reps', '-') or '-'}"
+
+            with title_col:
+                st.markdown(
+                    f'<div class="log-card-title">{index + 1}. {exercise_name}</div>',
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    '<div class="log-card-chip-row">'
+                    '<span class="log-card-chip chip-weight">Weight</span>'
+                    '<span class="log-card-chip chip-reps">Reps</span>'
+                    "</div>",
+                    unsafe_allow_html=True,
                 )
 
-            st.markdown("**Set 1**")
-            set_1_reps = render_quick_pick_input(
-                "Reps",
-                f"{exercise_name}_{index}_set1_reps",
-                REPS_PRESETS,
-                previous.get("Set 1 Reps", ""),
-            )
-            set_1_load = render_quick_pick_input(
-                "Weight",
-                f"{exercise_name}_{index}_set1_load",
-                WEIGHT_PRESETS,
-                previous.get("Set 1 Load", ""),
+            with set_1_weight_col:
+                set_1_load = render_log_input(
+                    f"wt_{exercise_name}_{index}_set1",
+                    f"{exercise_name}_{index}_set1_load",
+                    previous.get("Set 1 Load", ""),
+                    "S1 Wt",
+                )
+
+            with set_1_reps_col:
+                set_1_reps = render_log_input(
+                    f"rep_{exercise_name}_{index}_set1",
+                    f"{exercise_name}_{index}_set1_reps",
+                    previous.get("Set 1 Reps", ""),
+                    "S1 Rep",
+                )
+
+            with set_2_weight_col:
+                set_2_load = render_log_input(
+                    f"wt_{exercise_name}_{index}_set2",
+                    f"{exercise_name}_{index}_set2_load",
+                    previous.get("Set 2 Load", ""),
+                    "S2 Wt",
+                )
+
+            with set_2_reps_col:
+                set_2_reps = render_log_input(
+                    f"rep_{exercise_name}_{index}_set2",
+                    f"{exercise_name}_{index}_set2_reps",
+                    previous.get("Set 2 Reps", ""),
+                    "S2 Rep",
+                )
+
+            st.markdown(
+                '<div class="log-card-meta">'
+                f"Target: {entry['rep_range']} | "
+                f"Rest: {entry['rest']} | "
+                f"RIR: {entry['rir_set_1']} / {entry['rir_set_2']} | "
+                f"Previous: {previous_summary}"
+                "</div>",
+                unsafe_allow_html=True,
             )
 
-            st.markdown("**Set 2**")
-            set_2_reps = render_quick_pick_input(
-                "Reps",
-                f"{exercise_name}_{index}_set2_reps",
-                REPS_PRESETS,
-                previous.get("Set 2 Reps", ""),
-            )
-            set_2_load = render_quick_pick_input(
-                "Weight",
-                f"{exercise_name}_{index}_set2_load",
-                WEIGHT_PRESETS,
-                previous.get("Set 2 Load", ""),
-            )
+            with st.expander("Details", expanded=False):
+                st.caption(f"Technique: {entry['intensity_technique']}")
+                st.write(
+                    f"Substitutions: {entry['substitution_1']} | {entry['substitution_2']}"
+                )
+                st.write(entry["notes"])
+                image_url = str(entry.get("image_url", "")).strip()
+                image_path = str(entry.get("image_path", "")).strip()
+                if image_url:
+                    st.image(image_url, use_container_width=True)
+                elif image_path:
+                    st.image(image_path, use_container_width=True)
+                else:
+                    st.caption("Add `image_url` or `image_path` to this exercise later to show a reference image here.")
 
-            session_notes = st.text_input(
-                "Exercise notes",
-                value=previous.get("Session Notes", ""),
-                placeholder="Optional notes for this exercise",
-                key=f"{exercise_name}_{index}_notes",
-            ).strip()
+                session_notes = st.text_input(
+                    "Exercise notes",
+                    value=previous.get("Session Notes", ""),
+                    placeholder="Optional notes for this exercise",
+                    key=f"{exercise_name}_{index}_notes",
+                ).strip()
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
         rows.append(
             {
@@ -655,6 +741,7 @@ def main() -> None:
         st.caption(
             "Logs are saved globally and will show up in the centralized session history tab."
         )
+        render_log_session_styles()
 
         with st.form(key=f"log-form-{selected_week_key}-{selected_day_key}"):
             session_date = st.date_input("Session date", value=date.today())
