@@ -520,6 +520,7 @@ def build_log_rows_from_form(
                     st.image(image_path, use_container_width=True)
                 else:
                     st.caption("Add `image_url` or `image_path` to this exercise later to show a reference image here.")
+                    st.video("https://youtu.be/ad0NL7TH2-I")
 
                 session_notes = st.text_input(
                     "Exercise notes",
@@ -720,7 +721,7 @@ def main() -> None:
     overview_columns[3].metric("Focus", selected_day_label)
 
     plan_tab, log_tab, history_tab = st.tabs(
-        ["Planned Workout", "Log Session", "Session History"]
+        ["Log Session", "Session History"]
     )
 
     with plan_tab:
