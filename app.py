@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import json
-import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -36,25 +35,33 @@ LOG_COLUMNS = [
     "set_2_reps",
     "session_notes",
 ]
+DEFAULT_SCHEDULE = {
+    "monday": "upper_1",
+    "tuesday": "lower_1",
+    "wednesday": "upper_2",
+    "thursday": "lower_2",
+    "friday": "arms_delts",
+    "saturday": "rest",
+    "sunday": "rest",
+}
+STATUS_COLORS = {
+    "Completed": "#2f7d32",
+    "In Progress": "#a05a00",
+    "Missed": "#b42318",
+    "Rest": "#5f6c7b",
+    "Due": "#1d4ed8",
+    "Upcoming": "#6b7280",
+}
 
 
 class LogStore:
     name = "Unknown"
     durable = False
 
-    def load_logs(self) -> list[dict[str, Any]]:
+    def load_rows(self) -> list[dict[str, str]]:
         raise NotImplementedError
 
-    def append_session_log(
-        self,
-        week_key: str,
-        week_label: str,
-        day_key: str,
-        day_label: str,
-        session_date: date,
-        session_rows: pd.DataFrame,
-        overall_notes: str,
-    ) -> None:
+    def upsert_exercise_log(self, row: dict[str, str]) -> None:
         raise NotImplementedError
 
 
@@ -65,39 +72,30 @@ class LocalJsonLogStore(LogStore):
     def __init__(self, path: Path) -> None:
         self.path = path
 
-    def load_logs(self) -> list[dict[str, Any]]:
+    def load_rows(self) -> list[dict[str, str]]:
         if not self.path.exists():
             return []
 
         with self.path.open("r", encoding="utf-8") as file:
             payload = json.load(file)
-            return payload if isinstance(payload, list) else []
 
-    def append_session_log(
-        self,
-        week_key: str,
-        week_label: str,
-        day_key: str,
-        day_label: str,
-        session_date: date,
-        session_rows: pd.DataFrame,
-        overall_notes: str,
-    ) -> None:
-        logs = self.load_logs()
-        logs.append(
-            build_session_log(
-                week_key=week_key,
-                week_label=week_label,
-                day_key=day_key,
-                day_label=day_label,
-                session_date=session_date,
-                session_rows=session_rows,
-                overall_notes=overall_notes,
-            )
-        )
+        if not isinstance(payload, list):
+            return []
+
+        if payload and isinstance(payload[0], dict) and "entries" in payload[0]:
+            rows: list[dict[str, str]] = []
+            for session in payload:
+                rows.extend(session_to_rows(session))
+            return rows
+
+        return [normalize_row_dict(item) for item in payload if isinstance(item, dict)]
+
+    def upsert_exercise_log(self, row: dict[str, str]) -> None:
+        rows = self.load_rows()
+        rows = upsert_row(rows, row)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("w", encoding="utf-8") as file:
-            json.dump(logs, file, indent=2)
+            json.dump(rows, file, indent=2)
 
 
 class GoogleSheetsLogStore(LogStore):
@@ -110,52 +108,52 @@ class GoogleSheetsLogStore(LogStore):
         self.spreadsheet_name = config.get("spreadsheet_name", "").strip()
         self.worksheet_name = config.get("worksheet_name", "session_logs").strip()
 
-    def load_logs(self) -> list[dict[str, Any]]:
+    def load_rows(self) -> list[dict[str, str]]:
         worksheet = self._get_worksheet()
-        rows = worksheet.get_all_records(expected_headers=LOG_COLUMNS)
-        return rows_to_sessions(rows)
+        values = worksheet.get_all_values()
+        if not values:
+            worksheet.append_row(LOG_COLUMNS, value_input_option="USER_ENTERED")
+            return []
 
-    def append_session_log(
-        self,
-        week_key: str,
-        week_label: str,
-        day_key: str,
-        day_label: str,
-        session_date: date,
-        session_rows: pd.DataFrame,
-        overall_notes: str,
-    ) -> None:
-        session = build_session_log(
-            week_key=week_key,
-            week_label=week_label,
-            day_key=day_key,
-            day_label=day_label,
-            session_date=session_date,
-            session_rows=session_rows,
-            overall_notes=overall_notes,
-        )
+        header = values[0]
+        rows: list[dict[str, str]] = []
+        for raw_row in values[1:]:
+            row_dict = {
+                header[index]: raw_row[index] if index < len(raw_row) else ""
+                for index in range(len(header))
+            }
+            rows.append(normalize_row_dict(row_dict))
+        return rows
+
+    def upsert_exercise_log(self, row: dict[str, str]) -> None:
         worksheet = self._get_worksheet()
-        rows = []
-        for entry in session["entries"]:
-            rows.append(
-                [
-                    session["session_id"],
-                    session["logged_at"],
-                    session["session_date"],
-                    session["week_key"],
-                    session["week_label"],
-                    session["day_key"],
-                    session["day_label"],
-                    session["overall_notes"],
-                    entry["exercise"],
-                    entry["set_1_load"],
-                    entry["set_1_reps"],
-                    entry["set_2_load"],
-                    entry["set_2_reps"],
-                    entry["session_notes"],
-                ]
+        values = worksheet.get_all_values()
+        if not values:
+            worksheet.append_row(LOG_COLUMNS, value_input_option="USER_ENTERED")
+            values = [LOG_COLUMNS]
+
+        header = values[0]
+        matching_row_number: int | None = None
+
+        for row_number, raw_row in enumerate(values[1:], start=2):
+            row_dict = {
+                header[index]: raw_row[index] if index < len(raw_row) else ""
+                for index in range(len(header))
+            }
+            normalized = normalize_row_dict(row_dict)
+            if rows_match(normalized, row):
+                matching_row_number = row_number
+                break
+
+        ordered_values = [[row[column] for column in LOG_COLUMNS]]
+        if matching_row_number is not None:
+            worksheet.update(
+                f"A{matching_row_number}:N{matching_row_number}",
+                ordered_values,
+                value_input_option="USER_ENTERED",
             )
-        worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+        else:
+            worksheet.append_rows(ordered_values, value_input_option="USER_ENTERED")
 
     def _get_worksheet(self):
         try:
@@ -194,90 +192,85 @@ class GoogleSheetsLogStore(LogStore):
                 cols=len(LOG_COLUMNS) + 2,
             )
 
-        current_header = worksheet.row_values(1)
-        if current_header != LOG_COLUMNS:
-            worksheet.clear()
+        if not worksheet.get_all_values():
             worksheet.append_row(LOG_COLUMNS, value_input_option="USER_ENTERED")
 
         return worksheet
 
 
-def load_program() -> dict[str, Any]:
+def load_program_file() -> dict[str, Any]:
     with PROGRAM_PATH.open("r", encoding="utf-8") as file:
         return yaml.safe_load(file) or {}
 
 
-def build_session_log(
-    week_key: str,
-    week_label: str,
-    day_key: str,
-    day_label: str,
-    session_date: date,
-    session_rows: pd.DataFrame,
-    overall_notes: str,
-) -> dict[str, Any]:
-    session = {
-        "session_id": str(uuid.uuid4()),
-        "logged_at": datetime.now().isoformat(timespec="seconds"),
-        "session_date": session_date.isoformat(),
-        "week_key": week_key,
-        "week_label": week_label,
-        "day_key": day_key,
-        "day_label": day_label,
-        "overall_notes": overall_notes.strip(),
-        "entries": [],
+def slugify(value: str) -> str:
+    characters = []
+    for char in value.lower():
+        if char.isalnum():
+            characters.append(char)
+        else:
+            characters.append("_")
+    slug = "".join(characters)
+    while "__" in slug:
+        slug = slug.replace("__", "_")
+    return slug.strip("_")
+
+
+def normalize_program(raw_program: dict[str, Any]) -> dict[str, Any]:
+    if raw_program.get("exercises") and raw_program.get("workouts"):
+        return raw_program
+
+    schedule = raw_program.get("schedule", DEFAULT_SCHEDULE)
+    start_date = raw_program.get("start_date", "2026-04-07")
+    week_one_days = raw_program.get("weeks", {}).get("week_1", {}).get("days", {})
+
+    exercises: dict[str, dict[str, Any]] = {}
+    workouts: dict[str, dict[str, Any]] = {}
+
+    for workout_key, workout in week_one_days.items():
+        workout_entries = []
+        for item in workout.get("exercises", []):
+            exercise_name = item["exercise"]
+            exercise_key = slugify(exercise_name)
+
+            exercises.setdefault(
+                exercise_key,
+                {
+                    "name": exercise_name,
+                    "notes": item.get("notes", ""),
+                    "substitution_1": item.get("substitution_1", ""),
+                    "substitution_2": item.get("substitution_2", ""),
+                    "video_url": item.get("video_url", ""),
+                    "image_url": item.get("image_url", ""),
+                    "image_path": item.get("image_path", ""),
+                },
+            )
+
+            workout_entries.append(
+                {
+                    "exercise_key": exercise_key,
+                    "intensity_technique": item.get("intensity_technique", "N/A"),
+                    "warm_up_sets": item.get("warm_up_sets", ""),
+                    "working_sets": item.get("working_sets", ""),
+                    "rep_range": item.get("rep_range", ""),
+                    "rir_set_1": item.get("rir_set_1", ""),
+                    "rir_set_2": item.get("rir_set_2", ""),
+                    "rest": item.get("rest", ""),
+                }
+            )
+
+        workouts[workout_key] = {
+            "label": workout.get("label", workout_key.replace("_", " ").title()),
+            "exercises": workout_entries,
+        }
+
+    return {
+        "program_name": raw_program.get("program_name", "Workout Program"),
+        "start_date": start_date,
+        "schedule": schedule,
+        "exercises": exercises,
+        "workouts": workouts,
     }
-
-    for row in session_rows.to_dict(orient="records"):
-        session["entries"].append(
-            {
-                "exercise": row["Exercise"],
-                "set_1_load": str(row["Set 1 Load"]).strip(),
-                "set_1_reps": str(row["Set 1 Reps"]).strip(),
-                "set_2_load": str(row["Set 2 Load"]).strip(),
-                "set_2_reps": str(row["Set 2 Reps"]).strip(),
-                "session_notes": str(row["Session Notes"]).strip(),
-            }
-        )
-
-    return session
-
-
-def rows_to_sessions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    sessions_by_id: dict[str, dict[str, Any]] = {}
-
-    for row in rows:
-        session_id = str(row.get("session_id", "")).strip()
-        if not session_id:
-            continue
-
-        session = sessions_by_id.setdefault(
-            session_id,
-            {
-                "session_id": session_id,
-                "logged_at": str(row.get("logged_at", "")).strip(),
-                "session_date": str(row.get("session_date", "")).strip(),
-                "week_key": str(row.get("week_key", "")).strip(),
-                "week_label": str(row.get("week_label", "")).strip(),
-                "day_key": str(row.get("day_key", "")).strip(),
-                "day_label": str(row.get("day_label", "")).strip(),
-                "overall_notes": str(row.get("overall_notes", "")).strip(),
-                "entries": [],
-            },
-        )
-
-        session["entries"].append(
-            {
-                "exercise": str(row.get("exercise", "")).strip(),
-                "set_1_load": str(row.get("set_1_load", "")).strip(),
-                "set_1_reps": str(row.get("set_1_reps", "")).strip(),
-                "set_2_load": str(row.get("set_2_load", "")).strip(),
-                "set_2_reps": str(row.get("set_2_reps", "")).strip(),
-                "session_notes": str(row.get("session_notes", "")).strip(),
-            }
-        )
-
-    return list(sessions_by_id.values())
 
 
 def get_log_store() -> tuple[LogStore, str | None]:
@@ -296,51 +289,246 @@ def get_log_store() -> tuple[LogStore, str | None]:
     return LocalJsonLogStore(LOGS_PATH), None
 
 
-def build_plan_table(exercises: list[dict[str, Any]]) -> pd.DataFrame:
+def normalize_row_dict(row: dict[str, Any]) -> dict[str, str]:
+    normalized: dict[str, str] = {}
+    for column in LOG_COLUMNS:
+        normalized[column] = str(row.get(column, "")).strip()
+    return normalized
+
+
+def session_to_rows(session: dict[str, Any]) -> list[dict[str, str]]:
     rows = []
-    for entry in exercises:
+    for entry in session.get("entries", []):
         rows.append(
+            normalize_row_dict(
+                {
+                    "session_id": session.get("session_id", ""),
+                    "logged_at": session.get("logged_at", ""),
+                    "session_date": session.get("session_date", ""),
+                    "week_key": session.get("week_key", ""),
+                    "week_label": session.get("week_label", ""),
+                    "day_key": session.get("day_key", ""),
+                    "day_label": session.get("day_label", ""),
+                    "overall_notes": session.get("overall_notes", ""),
+                    "exercise": entry.get("exercise", ""),
+                    "set_1_load": entry.get("set_1_load", ""),
+                    "set_1_reps": entry.get("set_1_reps", ""),
+                    "set_2_load": entry.get("set_2_load", ""),
+                    "set_2_reps": entry.get("set_2_reps", ""),
+                    "session_notes": entry.get("session_notes", ""),
+                }
+            )
+        )
+    return rows
+
+
+def upsert_row(rows: list[dict[str, str]], new_row: dict[str, str]) -> list[dict[str, str]]:
+    updated = False
+    result = []
+    for row in rows:
+        if rows_match(row, new_row):
+            result.append(new_row)
+            updated = True
+        else:
+            result.append(row)
+    if not updated:
+        result.append(new_row)
+    return result
+
+
+def rows_match(existing: dict[str, str], new_row: dict[str, str]) -> bool:
+    return (
+        existing.get("session_date") == new_row.get("session_date")
+        and existing.get("day_key") == new_row.get("day_key")
+        and existing.get("exercise") == new_row.get("exercise")
+    )
+
+
+def group_rows_to_sessions(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
+    sessions_by_id: dict[str, dict[str, Any]] = {}
+
+    for row in rows:
+        session_id = row.get("session_id", "") or build_session_id(
+            row.get("session_date", ""),
+            row.get("day_key", ""),
+        )
+        session = sessions_by_id.setdefault(
+            session_id,
             {
-                "Exercise": entry["exercise"],
-                "Intensity": entry["intensity_technique"],
-                "Warm-Up Sets": entry["warm_up_sets"],
-                "Working Sets": entry["working_sets"],
-                "Rep Range": entry["rep_range"],
-                "RIR Set 1": entry["rir_set_1"],
-                "RIR Set 2": entry["rir_set_2"],
-                "Rest": entry["rest"],
-                "Sub 1": entry["substitution_1"],
-                "Sub 2": entry["substitution_2"],
-                "Notes": entry["notes"],
+                "session_id": session_id,
+                "logged_at": row.get("logged_at", ""),
+                "session_date": row.get("session_date", ""),
+                "week_key": row.get("week_key", ""),
+                "week_label": row.get("week_label", ""),
+                "day_key": row.get("day_key", ""),
+                "day_label": row.get("day_label", ""),
+                "overall_notes": row.get("overall_notes", ""),
+                "entries": [],
+            },
+        )
+
+        if row.get("logged_at", "") > session["logged_at"]:
+            session["logged_at"] = row.get("logged_at", "")
+
+        session["entries"].append(
+            {
+                "exercise": row.get("exercise", ""),
+                "set_1_load": row.get("set_1_load", ""),
+                "set_1_reps": row.get("set_1_reps", ""),
+                "set_2_load": row.get("set_2_load", ""),
+                "set_2_reps": row.get("set_2_reps", ""),
+                "session_notes": row.get("session_notes", ""),
             }
         )
-    return pd.DataFrame(rows)
+
+    return sorted(
+        sessions_by_id.values(),
+        key=lambda session: (session.get("session_date", ""), session.get("logged_at", "")),
+        reverse=True,
+    )
 
 
-def build_log_editor_data(
-    exercises: list[dict[str, Any]], previous_logs: list[dict[str, Any]]
-) -> pd.DataFrame:
-    last_session_by_exercise: dict[str, dict[str, Any]] = {}
-    for session in previous_logs:
-        for item in session.get("entries", []):
-            exercise_name = item.get("exercise")
-            if exercise_name:
-                last_session_by_exercise[exercise_name] = item
+def parse_date(value: str) -> date:
+    return datetime.strptime(value, "%Y-%m-%d").date()
 
-    rows = []
-    for entry in exercises:
-        previous = last_session_by_exercise.get(entry["exercise"], {})
-        rows.append(
-            {
-                "Exercise": entry["exercise"],
-                "Set 1 Load": previous.get("set_1_load", ""),
-                "Set 1 Reps": previous.get("set_1_reps", ""),
-                "Set 2 Load": previous.get("set_2_load", ""),
-                "Set 2 Reps": previous.get("set_2_reps", ""),
-                "Session Notes": previous.get("session_notes", ""),
-            }
+
+def calculate_week_number(start_date: date, selected_date: date) -> int:
+    if selected_date < start_date:
+        return 0
+    return ((selected_date - start_date).days // 7) + 1
+
+
+def get_week_bounds(start_date: date, week_number: int) -> tuple[date, date]:
+    week_start = start_date + timedelta(days=(week_number - 1) * 7)
+    week_end = week_start + timedelta(days=6)
+    return week_start, week_end
+
+
+def build_session_id(session_date: str, workout_key: str) -> str:
+    return f"{session_date}::{workout_key}"
+
+
+def format_value(value: str, fallback: str = "-") -> str:
+    cleaned = str(value).strip()
+    return cleaned if cleaned else fallback
+
+
+def parse_numeric(value: str) -> float | None:
+    cleaned = str(value).strip()
+    if not cleaned:
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def build_exercise_performance_map(rows: list[dict[str, str]]) -> dict[str, dict[str, Any]]:
+    by_exercise: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        exercise_name = row.get("exercise", "")
+        if exercise_name:
+            by_exercise.setdefault(exercise_name, []).append(row)
+
+    performance: dict[str, dict[str, Any]] = {}
+    for exercise_name, exercise_rows in by_exercise.items():
+        sorted_rows = sorted(
+            exercise_rows,
+            key=lambda row: (row.get("session_date", ""), row.get("logged_at", "")),
+            reverse=True,
         )
-    return pd.DataFrame(rows)
+        last_row = sorted_rows[0]
+        best_label = compute_best_label(exercise_rows)
+        performance[exercise_name] = {
+            "last_row": last_row,
+            "last_label": (
+                f"S1 {format_value(last_row.get('set_1_load', ''))} x {format_value(last_row.get('set_1_reps', ''))} | "
+                f"S2 {format_value(last_row.get('set_2_load', ''))} x {format_value(last_row.get('set_2_reps', ''))}"
+            ),
+            "best_label": best_label,
+        }
+    return performance
+
+
+def compute_best_label(rows: list[dict[str, str]]) -> str:
+    best: tuple[tuple[int, float, float], str] | None = None
+    for row in rows:
+        for set_number in ("1", "2"):
+            weight = row.get(f"set_{set_number}_load", "")
+            reps = row.get(f"set_{set_number}_reps", "")
+            weight_value = parse_numeric(weight)
+            reps_value = parse_numeric(reps)
+            if weight_value is None and reps_value is None:
+                continue
+
+            score = (
+                1 if weight_value is not None else 0,
+                weight_value if weight_value is not None else -1.0,
+                reps_value if reps_value is not None else -1.0,
+            )
+
+            if weight_value is not None:
+                label = f"{format_value(weight)} x {format_value(reps)}"
+            else:
+                label = f"{format_value(reps)} reps"
+
+            if best is None or score > best[0]:
+                best = (score, label)
+
+    return best[1] if best else "-"
+
+
+def merge_workout_exercises(program: dict[str, Any], workout_key: str) -> list[dict[str, Any]]:
+    workout = program["workouts"][workout_key]
+    merged = []
+    for entry in workout.get("exercises", []):
+        exercise = program["exercises"][entry["exercise_key"]]
+        merged.append({**exercise, **entry})
+    return merged
+
+
+def build_row_for_save(
+    selected_date: date,
+    week_number: int,
+    workout_key: str,
+    workout_label: str,
+    exercise_name: str,
+    set_1_load: str,
+    set_1_reps: str,
+    set_2_load: str,
+    set_2_reps: str,
+    session_notes: str,
+) -> dict[str, str]:
+    session_date = selected_date.isoformat()
+    return normalize_row_dict(
+        {
+            "session_id": build_session_id(session_date, workout_key),
+            "logged_at": datetime.now().isoformat(timespec="seconds"),
+            "session_date": session_date,
+            "week_key": f"week_{week_number}",
+            "week_label": f"Week {week_number}",
+            "day_key": workout_key,
+            "day_label": workout_label,
+            "overall_notes": "",
+            "exercise": exercise_name,
+            "set_1_load": set_1_load,
+            "set_1_reps": set_1_reps,
+            "set_2_load": set_2_load,
+            "set_2_reps": set_2_reps,
+            "session_notes": session_notes,
+        }
+    )
+
+
+def get_rows_for_workout_date(
+    rows: list[dict[str, str]], selected_date: date, workout_key: str
+) -> dict[str, dict[str, str]]:
+    session_date = selected_date.isoformat()
+    result = {}
+    for row in rows:
+        if row.get("session_date") == session_date and row.get("day_key") == workout_key:
+            result[row.get("exercise", "")] = row
+    return result
 
 
 def render_log_session_styles() -> None:
@@ -348,62 +536,50 @@ def render_log_session_styles() -> None:
         """
         <style>
         div[data-testid="stTextInput"] input[aria-label^="wt_"] {
-            border: 2px solid #c74d46;
-            background: rgba(199, 77, 70, 0.08);
+            border: 2px solid #cf4a43;
+            background: rgba(207, 74, 67, 0.08);
             font-weight: 700;
             text-align: center;
         }
         div[data-testid="stTextInput"] input[aria-label^="rep_"] {
-            border: 2px solid #3d7be0;
-            background: rgba(61, 123, 224, 0.08);
+            border: 2px solid #3273dc;
+            background: rgba(50, 115, 220, 0.08);
             font-weight: 700;
             text-align: center;
         }
-        div[data-testid="stTextInput"] input[aria-label^="wt_"]::placeholder {
-            color: #8d2d28;
-        }
-        div[data-testid="stTextInput"] input[aria-label^="rep_"]::placeholder {
-            color: #1f5bc2;
-        }
-        .log-card {
-            border: 1px solid rgba(34, 34, 34, 0.08);
+        .exercise-card {
+            border: 1px solid rgba(28, 28, 28, 0.08);
             border-radius: 18px;
-            padding: 0.9rem 0.9rem 0.25rem 0.9rem;
-            background: rgba(255, 255, 255, 0.72);
-            margin-bottom: 0.85rem;
+            padding: 0.9rem;
+            background: rgba(255, 255, 255, 0.8);
+            margin-bottom: 0.9rem;
         }
-        .log-card-title {
-            font-size: 1.04rem;
+        .exercise-title {
+            font-size: 1.02rem;
             font-weight: 700;
             line-height: 1.2;
             margin-top: 0.15rem;
         }
-        .log-card-meta {
+        .exercise-meta {
             font-size: 0.82rem;
-            color: #5b5b5b;
-            margin: 0.2rem 0 0.5rem 0;
+            color: #5d5d5d;
+            margin-top: 0.35rem;
         }
-        .log-card-chip-row {
-            display: flex;
-            gap: 0.4rem;
-            flex-wrap: wrap;
-            margin-bottom: 0.25rem;
-        }
-        .log-card-chip {
-            font-size: 0.68rem;
-            font-weight: 700;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-            padding: 0.22rem 0.5rem;
+        .status-pill {
+            display: inline-block;
+            margin-top: 0.45rem;
+            padding: 0.18rem 0.5rem;
             border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: white;
         }
-        .chip-weight {
-            color: #8d2d28;
-            background: rgba(199, 77, 70, 0.12);
-        }
-        .chip-reps {
-            color: #1f5bc2;
-            background: rgba(61, 123, 224, 0.12);
+        .week-card {
+            border-radius: 16px;
+            padding: 0.8rem 0.9rem;
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid rgba(28, 28, 28, 0.07);
+            margin-bottom: 0.7rem;
         }
         </style>
         """,
@@ -411,355 +587,386 @@ def render_log_session_styles() -> None:
     )
 
 
-def render_log_input(
-    label: str,
-    key: str,
-    default_value: Any,
-    placeholder: str,
-) -> str:
-    return st.text_input(
-        label,
-        value=str(default_value).strip(),
-        key=key,
-        placeholder=placeholder,
-        label_visibility="collapsed",
-    ).strip()
-
-
-def build_log_rows_from_form(
-    exercises: list[dict[str, Any]], previous_logs: list[dict[str, Any]]
-) -> pd.DataFrame:
-    previous_rows = build_log_editor_data(exercises, previous_logs)
-    previous_by_exercise = {
-        row["Exercise"]: row for row in previous_rows.to_dict(orient="records")
-    }
-
-    rows = []
-    for index, entry in enumerate(exercises):
-        exercise_name = entry["exercise"]
-        previous = previous_by_exercise.get(exercise_name, {})
-        previous_summary = (
-            f"S1 {previous.get('Set 1 Load', '-') or '-'} x {previous.get('Set 1 Reps', '-') or '-'} | "
-            f"S2 {previous.get('Set 2 Load', '-') or '-'} x {previous.get('Set 2 Reps', '-') or '-'}"
-        )
-
-        with st.container():
-            st.markdown('<div class="log-card">', unsafe_allow_html=True)
-
-            title_col, set_1_weight_col, set_1_reps_col, set_2_weight_col, set_2_reps_col = st.columns(
-                [2.4, 1, 1, 1, 1],
-                gap="small",
-            )
-
-            with title_col:
-                st.markdown(
-                    f'<div class="log-card-title">{index + 1}. {exercise_name}</div>',
-                    unsafe_allow_html=True,
-                )
-                st.markdown(
-                    '<div class="log-card-chip-row">'
-                    '<span class="log-card-chip chip-weight">Weight</span>'
-                    '<span class="log-card-chip chip-reps">Reps</span>'
-                    "</div>",
-                    unsafe_allow_html=True,
-                )
-
-            with set_1_weight_col:
-                set_1_load = render_log_input(
-                    f"wt_{exercise_name}_{index}_set1",
-                    f"{exercise_name}_{index}_set1_load",
-                    previous.get("Set 1 Load", ""),
-                    "S1 Wt",
-                )
-
-            with set_1_reps_col:
-                set_1_reps = render_log_input(
-                    f"rep_{exercise_name}_{index}_set1",
-                    f"{exercise_name}_{index}_set1_reps",
-                    previous.get("Set 1 Reps", ""),
-                    "S1 Rep",
-                )
-
-            with set_2_weight_col:
-                set_2_load = render_log_input(
-                    f"wt_{exercise_name}_{index}_set2",
-                    f"{exercise_name}_{index}_set2_load",
-                    previous.get("Set 2 Load", ""),
-                    "S2 Wt",
-                )
-
-            with set_2_reps_col:
-                set_2_reps = render_log_input(
-                    f"rep_{exercise_name}_{index}_set2",
-                    f"{exercise_name}_{index}_set2_reps",
-                    previous.get("Set 2 Reps", ""),
-                    "S2 Rep",
-                )
-
-            st.markdown(
-                '<div class="log-card-meta">'
-                f"Target: {entry['rep_range']} | "
-                f"Rest: {entry['rest']} | "
-                f"RIR: {entry['rir_set_1']} / {entry['rir_set_2']} | "
-                f"Previous: {previous_summary}"
-                "</div>",
-                unsafe_allow_html=True,
-            )
-
-            with st.expander("Details", expanded=False):
-                st.caption(f"Technique: {entry['intensity_technique']}")
-                st.write(
-                    f"Substitutions: {entry['substitution_1']} | {entry['substitution_2']}"
-                )
-                st.write(entry["notes"])
-                video_url = str(entry.get("video_url", "")).strip()
-                image_path = str(entry.get("image_path", "")).strip()
-                if video_url:
-                    st.video(video_url)
-                elif image_path:
-                    st.image(image_path, use_container_width=True)
-                else:
-                    st.caption("Add `video_url` or `image_path` to this exercise later to show a reference image here.")
-
-                session_notes = st.text_input(
-                    "Exercise notes",
-                    value=previous.get("Session Notes", ""),
-                    placeholder="Optional notes for this exercise",
-                    key=f"{exercise_name}_{index}_notes",
-                ).strip()
-
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        rows.append(
-            {
-                "Exercise": exercise_name,
-                "Set 1 Load": set_1_load,
-                "Set 1 Reps": set_1_reps,
-                "Set 2 Load": set_2_load,
-                "Set 2 Reps": set_2_reps,
-                "Session Notes": session_notes,
-            }
-        )
-
-    return pd.DataFrame(rows)
-
-
-def render_exercise_cards(exercises: list[dict[str, Any]]) -> None:
-    for index, entry in enumerate(exercises, start=1):
-        with st.container(border=True):
-            st.markdown(f"### {index}. {entry['exercise']}")
-
-            summary_columns = st.columns(5)
-            summary_columns[0].metric("Warm-Up", str(entry["warm_up_sets"]))
-            summary_columns[1].metric("Working Sets", str(entry["working_sets"]))
-            summary_columns[2].metric("Rep Range", entry["rep_range"])
-            summary_columns[3].metric(
-                "RIR Targets", f"{entry['rir_set_1']} / {entry['rir_set_2']}"
-            )
-            summary_columns[4].metric("Rest", entry["rest"])
-
-            st.caption(f"Technique: {entry['intensity_technique']}")
-            st.write(
-                f"Substitutions: {entry['substitution_1']} | {entry['substitution_2']}"
-            )
-            st.write(entry["notes"])
-
-
-def filter_logs(
-    logs: list[dict[str, Any]], week_key: str, day_key: str
-) -> list[dict[str, Any]]:
-    return [
-        session
-        for session in logs
-        if session.get("week_key") == week_key and session.get("day_key") == day_key
-    ]
-
-
-def sort_logs_desc(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return sorted(
-        logs,
-        key=lambda session: (
-            session.get("session_date", ""),
-            session.get("logged_at", ""),
-        ),
-        reverse=True,
-    )
-
-
-def render_history(logs: list[dict[str, Any]], selected_week_label: str) -> None:
-    st.markdown("#### All logged sessions")
-
-    if not logs:
-        st.write("No sessions have been logged yet.")
-        return
-
-    available_weeks = ["All weeks"] + sorted(
-        {session.get("week_label", "Unknown week") for session in logs}
-    )
-    week_filter = st.selectbox(
-        "Filter history by week",
-        options=available_weeks,
-        index=available_weeks.index(selected_week_label)
-        if selected_week_label in available_weeks
-        else 0,
-    )
-
-    filtered_logs = logs
-    if week_filter != "All weeks":
-        filtered_logs = [
-            session
-            for session in filtered_logs
-            if session.get("week_label") == week_filter
-        ]
-
-    if not filtered_logs:
-        st.write("No logged sessions match this filter yet.")
-        return
-
-    for session in filtered_logs:
-        session_label = session.get("session_date", "Unknown date")
-        workout_label = (
-            f"{session.get('week_label', 'Unknown week')} - "
-            f"{session.get('day_label', 'Unknown workout')}"
-        )
-        with st.expander(f"{session_label} | {workout_label}", expanded=False):
-            st.caption(f"Saved at {session.get('logged_at', 'Unknown time')}")
-            if session.get("overall_notes"):
-                st.write(session["overall_notes"])
-
-            history_rows = []
-            for item in session.get("entries", []):
-                history_rows.append(
-                    {
-                        "Exercise": item.get("exercise", ""),
-                        "Set 1 Load": item.get("set_1_load", ""),
-                        "Set 1 Reps": item.get("set_1_reps", ""),
-                        "Set 2 Load": item.get("set_2_load", ""),
-                        "Set 2 Reps": item.get("set_2_reps", ""),
-                        "Notes": item.get("session_notes", ""),
-                    }
-                )
-
-            st.dataframe(
-                pd.DataFrame(history_rows),
-                use_container_width=True,
-                hide_index=True,
-            )
-
-
 def render_storage_status(log_store: LogStore, warning: str | None) -> None:
     if warning:
         st.warning(warning)
 
     if log_store.durable:
-        st.success(f"Log storage: {log_store.name}. Session logs are persistent.")
+        st.success(f"Log storage: {log_store.name}. Exercise logs are persistent.")
     else:
         st.info(
             f"Log storage: {log_store.name}. This works locally, but Streamlit Community Cloud will not keep app-written JSON files permanently."
         )
 
 
-def main() -> None:
-    st.title("GymTrack")
-    st.write(
-        "Browse your plan, log your session, and keep expanding the program over time."
-    )
-
-    log_store, storage_warning = get_log_store()
-    render_storage_status(log_store, storage_warning)
-
-    program = load_program()
-    logs = sort_logs_desc(log_store.load_logs())
-
-    weeks = program.get("weeks", {})
-    if not weeks:
-        st.error("No workout plan data found in data/program.yaml.")
+def render_history(sessions: list[dict[str, Any]]) -> None:
+    st.markdown("#### Logged Workouts")
+    if not sessions:
+        st.write("No workouts logged yet.")
         return
 
-    week_options = {details["label"]: key for key, details in weeks.items()}
-    selected_week_label = st.sidebar.selectbox(
-        "Choose week", options=list(week_options.keys())
-    )
-    selected_week_key = week_options[selected_week_label]
-    selected_week = weeks[selected_week_key]
-
-    days = selected_week.get("days", {})
-    if not days:
-        st.warning("This week does not have any sessions yet.")
-        return
-
-    day_options = {details["label"]: key for key, details in days.items()}
-    selected_day_label = st.sidebar.selectbox(
-        "Choose workout day", options=list(day_options.keys())
-    )
-    selected_day_key = day_options[selected_day_label]
-    selected_day = days[selected_day_key]
-
-    st.sidebar.markdown("---")
-    st.sidebar.caption(f"Program: {program.get('program_name', 'Workout Program')}")
-    st.sidebar.caption(f"Block: {selected_week.get('block', 'N/A')}")
-    st.sidebar.caption(f"Phase: {selected_week.get('phase', 'N/A')}")
-    st.sidebar.caption(f"Logs: {log_store.name}")
-
-    exercises = selected_day.get("exercises", [])
-    if not exercises:
-        st.warning("This workout day has no exercises yet.")
-        return
-
-    st.subheader(f"{selected_week_label} - {selected_day_label}")
-    st.caption(
-        f"{selected_week.get('block', 'Block')} | {selected_week.get('phase', 'Phase')}"
-    )
-
-    overview_columns = st.columns(4)
-    overview_columns[0].metric("Exercises", len(exercises))
-    overview_columns[1].metric(
-        "Working Sets", sum(int(item["working_sets"]) for item in exercises)
-    )
-    overview_columns[2].metric("Logged Sessions", len(logs))
-    overview_columns[3].metric("Focus", selected_day_label)
-
-    log_tab, history_tab = st.tabs(
-        ["Log Session", "Session History"]
-    )
-
-    matching_logs = filter_logs(logs, selected_week_key, selected_day_key)
-
-    with log_tab:
-        st.markdown("#### Log today's workout")
-        st.caption(
-            "Logs are saved globally and will show up in the centralized session history tab."
+    for session in sessions:
+        label = (
+            f"{session.get('session_date', 'Unknown date')} | "
+            f"Week {session.get('week_label', '').replace('Week ', '') or '?'} | "
+            f"{session.get('day_label', 'Workout')}"
         )
-        render_log_session_styles()
+        with st.expander(label, expanded=False):
+            rows = []
+            for entry in session.get("entries", []):
+                rows.append(
+                    {
+                        "Exercise": entry.get("exercise", ""),
+                        "Set 1 Load": entry.get("set_1_load", ""),
+                        "Set 1 Reps": entry.get("set_1_reps", ""),
+                        "Set 2 Load": entry.get("set_2_load", ""),
+                        "Set 2 Reps": entry.get("set_2_reps", ""),
+                        "Notes": entry.get("session_notes", ""),
+                    }
+                )
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
-        with st.form(key=f"log-form-{selected_week_key}-{selected_day_key}"):
-            session_date = st.date_input("Session date", value=date.today())
-            edited_df = build_log_rows_from_form(exercises, matching_logs)
-            overall_notes = st.text_area(
-                "Overall session notes",
-                placeholder="Energy, pumps, substitutions used, or anything to remember next time.",
+
+def get_workout_status_for_date(
+    rows: list[dict[str, str]],
+    selected_date: date,
+    workout_key: str,
+    total_exercises: int,
+    today: date,
+) -> str:
+    if workout_key == "rest":
+        return "Rest"
+
+    session_rows = get_rows_for_workout_date(rows, selected_date, workout_key)
+    logged_count = len(session_rows)
+    if logged_count >= total_exercises and total_exercises > 0:
+        return "Completed"
+    if logged_count > 0:
+        return "In Progress"
+    if selected_date < today:
+        return "Missed"
+    if selected_date == today:
+        return "Due"
+    return "Upcoming"
+
+
+def render_program_week(
+    start_date: date,
+    week_number: int,
+    schedule: dict[str, str],
+    program: dict[str, Any],
+    rows: list[dict[str, str]],
+    today: date,
+) -> None:
+    st.markdown("#### Program Week")
+    week_start, week_end = get_week_bounds(start_date, week_number)
+    st.caption(f"Week {week_number}: {week_start.isoformat()} to {week_end.isoformat()}")
+
+    for offset in range(7):
+        current_date = week_start + timedelta(days=offset)
+        weekday_name = current_date.strftime("%A").lower()
+        scheduled_key = schedule.get(weekday_name, "rest")
+        scheduled_label = (
+            "Rest"
+            if scheduled_key == "rest"
+            else program["workouts"][scheduled_key]["label"]
+        )
+        total_exercises = (
+            0
+            if scheduled_key == "rest"
+            else len(program["workouts"][scheduled_key]["exercises"])
+        )
+        status = get_workout_status_for_date(
+            rows,
+            current_date,
+            scheduled_key,
+            total_exercises,
+            today,
+        )
+        color = STATUS_COLORS[status]
+        st.markdown(
+            f"""
+            <div class="week-card">
+              <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;">
+                <div>
+                  <div style="font-weight:700;">{current_date.strftime("%A, %b %d")}</div>
+                  <div style="font-size:0.88rem;color:#5d5d5d;">{scheduled_label}</div>
+                </div>
+                <div class="status-pill" style="background:{color};">{status}</div>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def render_workout_header(
+    selected_date: date,
+    workout_label: str,
+    week_number: int,
+    workout_status: str,
+    completed_exercises: int,
+    total_exercises: int,
+) -> None:
+    st.subheader(f"{workout_label} | Week {week_number}")
+    st.caption(f"{selected_date.isoformat()} | Status: {workout_status}")
+    progress_columns = st.columns(3)
+    progress_columns[0].metric("Completed Exercises", completed_exercises)
+    progress_columns[1].metric("Workout Size", total_exercises)
+    progress_columns[2].metric("Progress", f"{completed_exercises}/{total_exercises}")
+
+
+def render_exercise_logger(
+    selected_date: date,
+    week_number: int,
+    workout_key: str,
+    workout_label: str,
+    exercise_entry: dict[str, Any],
+    todays_row: dict[str, str] | None,
+    performance: dict[str, Any],
+    log_store: LogStore,
+) -> None:
+    exercise_name = exercise_entry["name"]
+    last_row = performance.get(exercise_name, {}).get("last_row", {})
+    last_label = performance.get(exercise_name, {}).get("last_label", "-")
+    best_label = performance.get(exercise_name, {}).get("best_label", "-")
+
+    default_row = todays_row or last_row or {}
+    status = "Saved" if todays_row else "Not Saved"
+    status_color = STATUS_COLORS["Completed"] if todays_row else STATUS_COLORS["Upcoming"]
+
+    with st.container(border=True):
+        with st.form(key=f"{selected_date.isoformat()}::{workout_key}::{exercise_name}"):
+            title_col, s1w_col, s1r_col, s2w_col, s2r_col = st.columns(
+                [2.6, 1, 1, 1, 1],
+                gap="small",
             )
-            submitted = st.form_submit_button("Save session log", use_container_width=True)
+
+            with title_col:
+                st.markdown(
+                    f'<div class="exercise-title">{exercise_name}</div>',
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f'<span class="status-pill" style="background:{status_color};">{status}</span>',
+                    unsafe_allow_html=True,
+                )
+
+            with s1w_col:
+                set_1_load = st.text_input(
+                    f"wt_{exercise_name}_s1",
+                    value=default_row.get("set_1_load", ""),
+                    placeholder="S1 Wt",
+                    label_visibility="collapsed",
+                ).strip()
+
+            with s1r_col:
+                set_1_reps = st.text_input(
+                    f"rep_{exercise_name}_s1",
+                    value=default_row.get("set_1_reps", ""),
+                    placeholder="S1 Rep",
+                    label_visibility="collapsed",
+                ).strip()
+
+            with s2w_col:
+                set_2_load = st.text_input(
+                    f"wt_{exercise_name}_s2",
+                    value=default_row.get("set_2_load", ""),
+                    placeholder="S2 Wt",
+                    label_visibility="collapsed",
+                ).strip()
+
+            with s2r_col:
+                set_2_reps = st.text_input(
+                    f"rep_{exercise_name}_s2",
+                    value=default_row.get("set_2_reps", ""),
+                    placeholder="S2 Rep",
+                    label_visibility="collapsed",
+                ).strip()
+
+            st.markdown(
+                f'<div class="exercise-meta">'
+                f"Target: {exercise_entry['rep_range']} | "
+                f"Rest: {exercise_entry['rest']} | "
+                f"RIR: {exercise_entry['rir_set_1']} / {exercise_entry['rir_set_2']} | "
+                f"Last: {last_label} | "
+                f"Best: {best_label}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+            with st.expander("Details", expanded=False):
+                st.caption(f"Technique: {exercise_entry['intensity_technique']}")
+                st.caption(
+                    f"Warm-Up: {exercise_entry['warm_up_sets']} | "
+                    f"Working Sets: {exercise_entry['working_sets']}"
+                )
+                st.write(
+                    f"Substitutions: {exercise_entry.get('substitution_1', '')} | "
+                    f"{exercise_entry.get('substitution_2', '')}"
+                )
+                st.write(exercise_entry.get("notes", ""))
+
+                video_url = str(exercise_entry.get("video_url", "")).strip()
+                image_url = str(exercise_entry.get("image_url", "")).strip()
+                image_path = str(exercise_entry.get("image_path", "")).strip()
+                if video_url:
+                    st.video(video_url)
+                elif image_url:
+                    st.image(image_url, use_container_width=True)
+                elif image_path:
+                    st.image(image_path, use_container_width=True)
+
+                session_notes = st.text_input(
+                    "Exercise notes",
+                    value=default_row.get("session_notes", ""),
+                    placeholder="Optional notes",
+                    key=f"notes::{selected_date.isoformat()}::{workout_key}::{exercise_name}",
+                ).strip()
+
+            submitted = st.form_submit_button(
+                "Save Exercise",
+                use_container_width=True,
+            )
 
         if submitted:
-            try:
-                log_store.append_session_log(
-                    week_key=selected_week_key,
-                    week_label=selected_week_label,
-                    day_key=selected_day_key,
-                    day_label=selected_day_label,
-                    session_date=session_date,
-                    session_rows=edited_df,
-                    overall_notes=overall_notes,
-                )
-            except Exception as error:
-                st.error(f"Could not save the session log: {error}")
-            else:
-                st.success(f"Session saved to {log_store.name}")
-                st.rerun()
+            row = build_row_for_save(
+                selected_date=selected_date,
+                week_number=week_number,
+                workout_key=workout_key,
+                workout_label=workout_label,
+                exercise_name=exercise_name,
+                set_1_load=set_1_load,
+                set_1_reps=set_1_reps,
+                set_2_load=set_2_load,
+                set_2_reps=set_2_reps,
+                session_notes=session_notes,
+            )
+            log_store.upsert_exercise_log(row)
+            st.session_state["flash_message"] = f"Saved {exercise_name}"
+            st.rerun()
+
+
+def main() -> None:
+    log_store, storage_warning = get_log_store()
+    raw_program = load_program_file()
+    program = normalize_program(raw_program)
+    rows = log_store.load_rows()
+    sessions = group_rows_to_sessions(rows)
+    performance = build_exercise_performance_map(rows)
+
+    start_date = parse_date(program["start_date"])
+    today = date.today()
+
+    st.title(program["program_name"])
+    render_storage_status(log_store, storage_warning)
+
+    if "flash_message" in st.session_state:
+        st.success(st.session_state.pop("flash_message"))
+
+    selected_date = st.sidebar.date_input("Workout date", value=today)
+    if isinstance(selected_date, tuple):
+        selected_date = selected_date[0]
+
+    if selected_date < start_date:
+        st.error(
+            f"Selected date is before your program start date of {start_date.isoformat()}."
+        )
+        return
+
+    week_number = calculate_week_number(start_date, selected_date)
+    week_start, week_end = get_week_bounds(start_date, week_number)
+
+    schedule = {
+        str(day).lower(): str(workout_key)
+        for day, workout_key in program.get("schedule", DEFAULT_SCHEDULE).items()
+    }
+    weekday_name = selected_date.strftime("%A").lower()
+    scheduled_workout_key = schedule.get(weekday_name, "rest")
+
+    workout_options = {
+        workout["label"]: workout_key
+        for workout_key, workout in program["workouts"].items()
+    }
+    workout_labels = list(workout_options.keys())
+
+    if scheduled_workout_key != "rest":
+        default_workout_label = program["workouts"][scheduled_workout_key]["label"]
+    else:
+        default_workout_label = workout_labels[0]
+
+    selected_workout_label = st.sidebar.selectbox(
+        "Workout template",
+        options=workout_labels,
+        index=workout_labels.index(default_workout_label),
+    )
+    selected_workout_key = workout_options[selected_workout_label]
+
+    st.sidebar.markdown("---")
+    st.sidebar.caption(f"Program Start: {start_date.isoformat()}")
+    st.sidebar.caption(f"Week {week_number}: {week_start.isoformat()} to {week_end.isoformat()}")
+    st.sidebar.caption(
+        "Scheduled Today: "
+        + (
+            "Rest"
+            if scheduled_workout_key == "rest"
+            else program["workouts"][scheduled_workout_key]["label"]
+        )
+    )
+    st.sidebar.caption(f"Logs: {log_store.name}")
+
+    workout_exercises = merge_workout_exercises(program, selected_workout_key)
+    todays_rows = get_rows_for_workout_date(rows, selected_date, selected_workout_key)
+    total_exercises = len(workout_exercises)
+    completed_exercises = len(todays_rows)
+    workout_status = get_workout_status_for_date(
+        rows,
+        selected_date,
+        selected_workout_key,
+        total_exercises,
+        today,
+    )
+
+    render_log_session_styles()
+    render_workout_header(
+        selected_date=selected_date,
+        workout_label=selected_workout_label,
+        week_number=week_number,
+        workout_status=workout_status,
+        completed_exercises=completed_exercises,
+        total_exercises=total_exercises,
+    )
+
+    workout_tab, week_tab, history_tab = st.tabs(
+        ["Workout", "Program Week", "History"]
+    )
+
+    with workout_tab:
+        for exercise_entry in workout_exercises:
+            todays_row = todays_rows.get(exercise_entry["name"])
+            render_exercise_logger(
+                selected_date=selected_date,
+                week_number=week_number,
+                workout_key=selected_workout_key,
+                workout_label=selected_workout_label,
+                exercise_entry=exercise_entry,
+                todays_row=todays_row,
+                performance=performance,
+                log_store=log_store,
+            )
+
+    with week_tab:
+        render_program_week(
+            start_date=start_date,
+            week_number=week_number,
+            schedule=schedule,
+            program=program,
+            rows=rows,
+            today=today,
+        )
 
     with history_tab:
-        render_history(logs, selected_week_label)
+        render_history(sessions)
 
 
 if __name__ == "__main__":

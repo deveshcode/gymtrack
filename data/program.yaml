@@ -1,4 +1,13 @@
 program_name: "12 Week Workout Program"
+start_date: "2026-04-07"
+schedule:
+  monday: "upper_1"
+  tuesday: "lower_1"
+  wednesday: "upper_2"
+  thursday: "lower_2"
+  friday: "arms_delts"
+  saturday: "rest"
+  sunday: "rest"
 weeks:
   week_1:
     label: "Week 1"
